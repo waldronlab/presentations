@@ -228,7 +228,7 @@ Resources
 * *Bioconductor packages*: [curatedOvarianData](http://bioconductor.org/packages/curatedOvarianData/), [curatedBladderData](http://bioconductor.org/packages/curatedBladderData/), [curatedCRCData](http://bioconductor.org/packages/curatedOvarianData/), [doppelgangR](http://bioconductor.org/packages/doppelgangR/), [simulatorZ](http://bioconductor.org/packages/simulatorZ/)
 * Book chapter: Waldron L, Riester M: [Meta-Analysis in Gene Expression Studies.](http://waldronlab.org/wp-content/uploads/2016/03/Geneexpressionmeta-analyses.pdf) Methods Mol. Biol. 2016, 1418:161–176.
 * Longer workshop materials from [Bioc2014](http://bioconductor.org/help/course-materials/2014/BioC2014/)
-* Slides: https://www.github.com/waldronlab/Stockholm2016
+* Presentation [code on Github](https://github.com/waldronlab/presentations/tree/master/Waldron_2016-05-03_Stockholm)
 
 Conclusions
 ========================================================
