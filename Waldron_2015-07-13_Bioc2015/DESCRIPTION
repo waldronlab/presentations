@@ -1,0 +1,11 @@
+Package: bioc2015multiomicsworkshop
+Title: Workshop on analysis of multiple -omics assay datasets
+Version: 0.2
+Date: 2015-07-08
+Author: Tim Triche, Jr., Aedin Culhane, Marcel Ramos, Levi Waldron, others
+Description: A workshop on acquiring and dealing with multi-omics datasets
+Depends: RTCGAToolbox, mogsa
+Imports: methods,GenomicRanges,Biobase,ComplexHeatmap
+Suggests: knitr
+License: GPLv3
+VignetteBuilder: knitr

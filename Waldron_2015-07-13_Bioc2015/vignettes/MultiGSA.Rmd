@@ -1,0 +1,483 @@
+---
+title: "Multi-dataset Exploratory and Pathway data analysis"
+vignette: >
+  %\VignetteIndexEntry{MultiEDA}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+author: "Aedin Culhane  (aedin@jimmy.harvard.edu)"
+date: "July 15, 2015"
+bibliography: bibilo.bib
+output: html_document
+---
+
+```{r, echo=FALSE, results="hide"}
+library(knitr)
+opts_chunk$set(error=FALSE,fig.path='fig')
+```
+
+# Getting this tutorial
+
+```{r howtoget,eval=FALSE}
+source("http://bioconductor.org/biocLite.R") # installs BiocInstaller
+useDevel() # specifies to use bioc-devel (3.2)
+biocLite("devtools") # needed for the special use of biocLite() below
+biocLite("lwaldron/bioc2015multiomicsworkshop", dependencies=TRUE, build_vignetters=TRUE)
+biocLite("LiNK-NY/RTCGAToolbox", dependencies=TRUE, build_vignetters=TRUE)
+
+#Optional
+#devtools::install_github("fawda123/ggord", dependencies=TRUE)
+#biocLite("vjcitn/biocMultiAssay", dependencies=TRUE)
+```
+That last command will install the tutorial package from github, install all (Depends/Imports/Suggests) dependencies.
+
+```{r libsmore, echo=FALSE, results='hide', message=FALSE}
+require(gplots)
+```
+
+
+
+
+We will use the  TCGA  [TCGA data portal here](https://tcga-data.nci.nih.gov/tcga/) data we downlaoded earlier, from the firehose data [firehose_get](https://confluence.broadinstitute.org/display/GDAC/Download) pipeline but at the end of the document I have included all of the  the code to downlaod and generate the data
+
+
+
+#  Load Data
+
+Load the library bioc2015multiomicsworkshop and the data set se.  Check that the sampleNames are consistent between assays.
+
+```{r loadSE}
+library(bioc2015multiomicsworkshop)
+data(se)
+sapply(se, dim)
+x<-sapply(se, function(x) range(exprs(x), na.rm=TRUE))
+rownames(x) =c("min", "max")
+x
+```
+
+
+```{r checkUniq2, eval=FALSE}
+sapply(lapply(se, sampleNames), identical, sampleNames(se[[1]]))
+length(unique(lapply(se, sampleNames)))
+```
+
+# Integrated Exploratory data analysis: Finding cluusters in the data
+
+Within the package mogsa, we provide several dimension reduction methods that can be applied to integrated data analysis and cluster discovery. 
+
+  
+The function moa() performs multiple factor analysis (MFA) [@abdi_multiple_2013] or STATIS [@abdi_statis_2012]. MFA projects the observations  and variables (genes) from each dataset onto a lower dimensional space, resulting in sample scores (or PCs) and  variables loadings respectively. In MFA the rows of each dataset are first centered and scaled, then each dataset is weighted by the reverse of its first eigenvalue (proc.row=center_ssq1, w.data="lambda1"). If statis=TRUE, the statis algorithm will be used, that is, each dataset will be further weighted so that datasets closer to the overall structure will receive a higher weight.
+
+
+```{r se.moa}
+require(mogsa)
+se.moa<-moa(lapply(se, exprs), proc.row = "center_ssq1", w.data = "inertia", statis = TRUE)  # mcia
+```
+
+In this function, the input argument 
+  ----------------------- | --------------------
+                proc.row | preprocessing of rows 
+                w.data   |  weight of datasets.     
+                statis   |  multiple table analysis method to be used. 
+    ----------------------- | --------------------              
+To run multiple factorial analysis (MFA), set statis=FALSE (the default setting}).
+
+# plotting
+
+plot(x, y) where x is of class "moa" and  y should be "eig", "tau", "obs", "var" and "RV".
+
+```{r moa.slots, fig.width=6, fig.cap="Eigenvalues"}
+slotNames(se.moa)
+slot(se.moa, "partial.eig")[, 1:6] # extract the eigenvalue
+# show the eigenvalues in scree plot:
+layout(matrix(1:2, 1, 2)) 
+plot(se.moa, value = "eig", type = 2, main="variance of PCs (all)")
+plot(se.moa, value = "eig", type = 2, n=20, col=2:5, main="variance of PCs (top 20)") # zoom in
+plot(se.moa, value = "tau", type = 2, n=20, col=2:5, main="Scaled variance of PCs") # same as above, eig scaled to 1
+plot(se.moa, value = "RV",  main="RV Coefficients")
+```
+
+The scree plot can be used to identify the components to be explored. The PCs are ranked by eigenvalue and the first PCs will explain much more variance than others. Several other methods, such as the informal "elbow test" or more formal test could be used to determine the  number of retained PCs.
+
+
+The RV coefficient is a number betweeen 0 - 1 and is a measure of the concordance between datasets. Here we see closer concordance between the rna datasets.
+
+```{r RVcoef}
+se.moa@RV
+require(ComplexHeatmap)
+Heatmap(se.moa@RV)
+```
+
+
+```{r moaDist}
+se.moa.hc<-hclust(distMoa(se.moa,nf=3))
+sparcl::ColorDendrogram(se.moa.hc,y=se$rna$subtypes)
+legend("topright", levels(se$rna$subtypes), fill=1:nlevels(se$rna$subtypes), cex=0.5)
+
+```
+
+
+The function mbpca() performs either consensus PCA (CPCA), generalized CCA (GCCA) and multiple co-inertia analsyis (MCIA).  The method applied is defined by the parameter method	where;
+
+   ----------------------- | --------------------
+   method= "globalScore"   |  consensus PCA
+   method= "blockScore"    |  generalized canonical correlation analysis (GCCA)
+   method= "blockLoading"  |  multiple co-inertia anaysis (MCIA)
+   ----------------------- | --------------------
+   
+```{r mbpca}
+se.cPCA<-mbpca(lapply(se, exprs), ncomp=10, method="globalScore")  # cPCA
+se.blockScore<-mbpca(lapply(se, exprs), ncomp=10, method="blockScore")  # GCCA
+```
+#  Preparation of genesets 
+
+## Resources for GeneSet Analysis
+1. [MSigDb] (http://www.broadinstitute.org/gsea/msigdb/download_file.jsp?filePath=/resources/msigdb/5.0/msigdb.v5.0.symbols.gmt)
+2. [GeneSigDB] (http://www.genesigdb.org/download/ALL_SIGSv4.gmt)
+
+
+Preparation of KEGG, using the graphite library
+```{r prepGS, warning=FALSE, message=FALSE}
+library(graphite)
+keggdb <- prepGraphite(db = pathways("hsapiens", "kegg"), id = "symbol")
+annotSup <- prepSupMoa(lapply(se, exprs),geneSets=keggdb)
+sapply(annotSup, dim)
+```
+
+
+The MSigDB and GeneSigDB libraries of gene sets can be downloaded from the URLs above, and these can be processed using prepMsigDB.  There is a toy example of a mgt format in the extdata of the mogsa package (it has only 3 genesets).
+
+```{r prepGMT, eval=FALSE}
+dirPath= system.file(package="mogsa")
+preGS <- prepMsigDB(file=paste(dirPath, "/extdata/example_msigdb_data.gmt.gz", sep = ""))
+annotSup2 <- prepSupMoa(lapply(se, exprs),geneSets=preGS)
+rownames(annotSup2)
+```
+
+
+For the purpose of this tutorial we will only look at the KEGG pathways (processed above using the graphite package). The annotation data is a simply binary matrix which indicates if a gene is present in a pathway.  There are 187 kegg pathways and the number of features in each matrix is the same as those in the multi omics list se.  Note no features in the rppa data mapped to KEGG. IMPORTANT: the number of features in the assay Data and in the annotation data have to match.  
+
+```{r aaa}
+sapply(annotSup,dim)
+sapply(annotSup,table)
+sapply(se, dim)
+```
+
+
+
+# MOGSA, Multi-Omics Gene Set Analysis
+
+MOGSA algorithm consists of three steps. In the first step, multiple omics data are integrated using multi-table multivariate analysis, such as multiple factorial analysis (MFA). MFA projects the observations and variables (genes) from each dataset onto a lower dimensional space, resulting in sample scores (or PCs) and variables loadings respectively. Next, gene set annotations are projected as additional information onto the same space, generating a set of scores for each gene set across samples. In the final step, MOGSA generates a gene set score (GSS) matrix by reconstructing the sample scores and gene set scores. A high GSS indicates that gene set and the variables in that gene set have measurement in one or more dataset that explain a large proportion of the correlated information across data tables. Variables (genes) unique to individual datasets or common among matrices may contribute to a high GSS. For example, in a gene set, a few genes may have high levels of gene expression, others may have increased protein levels and a few may have amplifications in copy number.
+In this document, we show with an example how to use MOGSA to integrate and annotate multiple omics data.
+
+For this analysis we will exclude the rppa data that didn't map to the kegg pathways
+
+```{r omit}
+i=1:3
+i=c(1,3)
+S2<- lapply(se[i], exprs)
+sapply(S2, dim)
+annotS2<-annotSup[i]
+sapply(annotS2, dim)
+```
+
+Then, we call the function \Rfunction{mogsa} to run MOGSA:
+```{r mogsaBasicRun}
+mgsa1 <- mogsa(S2, sup=annotS2, nf=3,
+               proc.row = "center_ssq1", w.data = "inertia", statis = TRUE)
+```
+In this function, the input argument *proc.row* stands for the preprocessing of rows and argument *w.data*
+indicates the weight of datasets. The last argument *statis* is about which multiple table
+analysis method should be used. Two multivariate methods are available at present, 
+one is "STATIS" (*statis=TRUE*) , 
+the other one is multiple factorial analysis (MFA; *statis=FALSE, the default setting*) . 
+
+In this analysis, we arbitrarily selected top three PCs (nf=3). But in practice, 
+the number of PCs need to be determined before running the MOGSA. 
+Therefore, it is also possible to run the multivariate analysis and projecting annotation data separately. After 
+running the multivariate analysis, a scree plot of eigenvalues for each PC could be used to determine
+the proper number of PCs to be included in the annotation projection step 
+(See the "Perform MOGSA in two steps" section).
+
+\subsection{Result analysis and interpretation}
+
+The function \Rfunction{mogsa} returns an object of class \Rclass{mgsa}. This information could be 
+extracted with function \Rfunction{getmgsa}. First, we want to know the variance explained by each PC
+on different datasets (figure 1). 
+
+```{r eigenPlot, fig.cap="The variance of each principal components (PC), the contributions of different data are distinguished by different colors", fig.width=4, fig.height=4}
+eigs <- getmgsa(mgsa1, "partial.eig") # get partial "eigenvalue" for separate data 
+barplot(as.matrix(eigs), legend.text = rownames(eigs))
+barplot(as.matrix(eigs), legend.text = rownames(eigs))
+```
+
+
+The main result returned by \Rfunction{mogsa} is the gene set score (GSS) matrix. The value in the matrix indicates the 
+overall active level of a gene set in a sample. The matrix could be extracted and visualized by
+
+```{r scoreMatrix, fig.cap="heatmap showing the gene set score (GSS) matrix"}
+
+# get the score matrix
+scores <- getmgsa(mgsa1, "score")
+head(scores[,1:4])
+require(RColorBrewer)
+mycol= rev(colorRampPalette(brewer.pal(10, "RdBu"))(256))
+
+## Subtype colors
+ssCol= as.character(as.numeric(se$rna$subtypes))
+require(gplots)
+heatmap.2(scores, trace = "n", scale = "r",  margins = c(6, 10), ColSideColors=ssCol, col=mycol, cexRow = 0.5, cexCol=0.5)
+legend("topleft", levels(se$rna$subtypes), fill=1:nlevels(se$rna$subtypes), cex = 0.5)
+```
+
+Figure 2 shows the gene set score matrix returned by \Rfunction{mogsa}.
+The rows of the matrix are all the gene sets used to annotate the data. But we are mostly interested in the gene sets with the largest 
+difference across clusters. The corresponding p-value for each gene set score can be extracted by \Rfunction{getmgsa}. Then, the most significant gene sets could be defined as gene sets that contain 
+highest number of significantly p-values. For example, if we want to select the top 20  most significant gene sets and plot them in heatmap, we do:
+```{r subsetScoreMatrix, fig.cap="heatmap showing the gene set score (GSS) matrix for top 10 significant gene sets"}
+p.mat <- getmgsa(mgsa1, "p.val") # get p value matrix
+# select gene sets with most signficant GSS scores.
+head(p.mat[,1:3],4)
+top.gs <- sort(rowSums(p.mat < 0.001), decreasing = TRUE)
+top.gs.name <- names(top.gs)[1:10]
+top.gs.name
+heatmap.2(scores[top.gs.name[10:1], ], trace = "n",  dendrogram = "col", margins = c(6, 10), ColSideColors=ssCol, col=mycol, scale="row")
+legend("topleft", levels(se$rna$subtypes), fill=1:nlevels(se$rna$subtypes), cex = 0.5)
+```
+The result is shown in figure 3. We can see that these gene sets reflect show that the mesenchymal and immunoreative subtypes are strongly driven by genesets that are associated with immune response (Antigen processsing )
+
+
+It is also interesting to look into more detailed information for a specific gene set.  For example, which dataset(s) contribute most to the high or low gene set score of a gene set? 
+And which genes are most important in defining the gene set score for a gene set?
+The former question could be answered by the gene set score decomposition; 
+the later question could be solve by the gene influential score. These analysis can be done with 
+\Rfunction{decompose.gs.group} and \Rfunction{GIS}.
+
+In the first example, we explore the gene set that have most significant gene set scores. The 
+gene set is
+```{r decompGis1_1}
+# gene set score decomposition
+# we explore two gene sets, the first one
+gs1 <- top.gs.name[1] # select the most significant gene set
+gs1
+```
+
+The data-wise decomposition of this gene set over cancer types is 
+```{r decompGis1_dc, fig.cap="gene set score (GSS) decomposition. The GSS decomposition are grouped according to the cancer subtype. The vertical bar showing the 95\\% of confidence interval of the means."}
+# decompose the gene set score over datasets
+decompose.gs.group(mgsa1, gs1, group = se$rna$subtypes) 
+```
+Figure 4 shows the mesenchymal and immunoreative subtypes  have highest GSS on this gene set. The subtypes with higher tumor purity (differentiated and proliferative) have lower GSS for "Cytokine-cytokine receptor interaction".
+The contribution to the overall gene set score by each dataset are separated in this plot.
+In general, there is a good concordance between different datasets. 
+
+Next, in order to know the most influential genes in this gene set. We call the function \Rfunction{GIS}:
+```{r decompGis1_gis, fig.cap="The gene influential score (GIS) plot. the GIS are represented as bars and the original data where the gene is from is distingished by different colors."}
+gis1 <- GIS(mgsa1, gs1) # gene influential score
+head(gis1) # print top 6 influencers
+```
+In figure 5, the bars represent the gene influential scores for genes. Genes from different platforms are 
+shown in different colors. The expression of genes with high positive GIS more likely to have a 
+good positive correlation with the gene set score. In this example, the most important genes in the gene set are mostly cytokines (IL-21R, IL7R etc)
+
+
+# Plot gene sets in projected space
+We can also see how the gene set are presented in the lower dimension space. Here we show the projection of gene set annotations on first two dimensions. Then, the label the two gene sets we analyzed before. 
+
+```{r gsSpace,fig.cap="cell line and gene sets projected on the PC1 and PC2"}
+fs <- getmgsa(mgsa1, "fac.scr") # extract the factor scores for cell lines (cell line space)
+layout(matrix(1:2, 1, 2))
+plot(fs[, 1:2], pch=20, col=ssCol, axes = FALSE)
+abline(v=0, h=0)
+legend("bottomleft", levels(se$rna$subtypes), fill=1:nlevels(se$rna$subtypes), cex = 0.5)
+plotGS(mgsa1, label.cex = 0.5, center.only = TRUE, topN = 0, label = top.gs.name )
+```
+
+
+For the plotGS (plot gene set space), we can plot the data from each separate dataset if we set center.only=FALSE. In this case the plots refer to `r names(mgsa1@sup@coord.sep)`
+```{r plotGS2}
+plotGS(mgsa1, label.cex = 0.5, topN = 5, center.only=FALSE)
+```
+
+Whilst  immune and stromal pathway dominate the first PC, we see PI3K-Akt, calcuim signalling and pathways related to cancer dominate PC2 
+
+```{r GSrank}
+top.gs2.name<-mgsa1@sup@coord.sep$rnaseq[order(mgsa1@sup@coord.sep$rnaseq[,2], decreasing=TRUE),2, drop=FALSE][1:10,]
+top.gs2.name
+gs2<-names(top.gs2.name)[1]
+```
+
+Again we can see what genes are driving this pathway, and their source
+```{r GIS2}
+gis2 <- GIS(mgsa1, gs2) # gene influential score
+head(gis2)
+decompose.gs.group(mgsa1, gs2, group = se$rna$subtypes)
+table(gis2$feature%in%keggdb["PI3K-Akt signaling pathway"][[1]])
+heatmap.2(exprs(se$rnaseq[featureNames(se$rnaseq)%in%gis2$feature,]), trace = "n", scale = "r",  margins = c(6, 10), ColSideColors=ssCol, col=mycol, cexRow = 0.5, cexCol=0.5)
+legend("topright", legend=levels(se$rna$subtypes), fill=unique(ssCol), cex=0.4)
+       
+```
+
+
+
+# Loading data from TCGA using RTCGToolbox
+
+
+1. Select a "run date" for processed data. I typically select the last one
+
+```{r runningdates, message=FALSE, eval=FALSE}
+library(RTCGAToolbox)
+(rd <- getFirehoseRunningDates(last = 1))
+```
+
+2. Select an "analysis date" for analyzed data, (eg GISTIC2). Again I typically select the last one
+
+```{r analysisdates, eval=FALSE}
+(ad <- getFirehoseAnalyzeDates(last=1))
+```
+
+3. Download the dataset or load from the package bioc2015multiomicsworkshop. Then need to match identifiers
+
+```{r getfirehosedatacalls, eval=FALSE}
+# fixed nchar issue. by changing nchar to base::nchar
+setMethod("nchar", "ANY", base::nchar)
+ov <- getFirehoseData("OV", runDate=rd, gistic2_Date=ad, RNAseq_Gene=TRUE, CNA_CGH=TRUE, CNV_SNP = TRUE,CNA_SNP =TRUE,  Methylation=TRUE, Mutation=TRUE, mRNA_Array=TRUE,  RPPA=TRUE)
+ov
+# Workaround, as the runDate and analyseData are missing from slots. these are needed later
+ov@runDate<-rd  
+ov@gistic2Date<- ad
+ov
+#save(ov, file="./data/ov.rda")
+```
+
+Extract each assay type as an "ExpressionSet" class. Note you can get the data (assayData), sample annoation (phenoData) and feature annotation (featureData) using the functions exprs(), pData(), fData() respectively. To get the row/col names, use sampleNames, featureNames
+
+
+```{r loadOv, eval=FALSE}
+#load("./data/ov.rda")
+# process data to a small subset for upload to package
+show(ov)
+rnaseq <- extract(ov, "rnaseqgene", clinical=TRUE)
+extract<-edit(extract)   # Replace TresholedByGene with ThresholedByGene
+gistic<-extract(ov, "gistic_t")
+rownames(gistic) = ov@GISTIC@ThresholedByGene[,1]
+mutation<-extract(ov, "mutation")
+rna<-extract(ov, "mrnaarray")
+rppa<-extract(ov, "RPPA")
+methyl<-extract(ov, "Methylation")
+```
+
+## 1. Storage of multi assay data (simple list)
+
+We wish to order the multiple assays as one R data object.  We will look at two approaches.  In the first case, we simple create a list  of the ExpressionSets.  This is simple, but not effciient storage, as each ExpressionSet will have the same phenoData, which is replicated in each ExpressionSet object.
+
+```{r multiClasslist, eval=FALSE}
+se<-list(rnaseq,gistic, rna, rppa, methyl)
+names(se) <- c("rnaseq","gistic", "rna", "rppa", "methyl")
+```
+
+From this we see 591 tumors with clinical data, but the sampleNames are not matched in each dataset. For example in the RNAseq there is only 299 but in the microarray we have  561 tumors. Therefore we will subset to the set of tumors common to all datasets
+
+The number of tumor samples in each assay
+```{r, eval=FALSE}
+sapply(se, ncol)
+```
+
+We can use Reduce to get the intersect over a list of vectors
+
+```{r subset, eval=FALSE}
+# Intersect of multiple vectors
+n<-Reduce(intersect, lapply(se, sampleNames))
+se<-lapply(se, function(x) x[,n])
+sapply(se, ncol)
+```
+
+
+## 2. Storage of multi assay data (biocMultiAssay)
+
+Recently the biocMultiAssay  developers have created a new class, called MultiAssayExperiment. This provides more efficient storage and accessing of objects in a multi-'omics assay Expt. To create an object of with class MultiAssayExperiment, use the function createMA providing it a master phenoData and a list of assay data.  The latter can be ExpressionSets or SummarizedExperiment.  
+
+In createMA, drop=TRUE will drop samples from individual assays that are not mapped to masterpheno.  This will ensure consistency between the assays. 
+
+
+```{r createMA, eval=FALSE}
+require(biocMultiAssay)
+#se<-list(rnaseq,gistic, rna, rppa)
+#names(se) <- c("rnaseq","gistic", "rna", "rppa")
+
+n<-Reduce(intersect, lapply(se, sampleNames))
+ma<-createMA(pData(se$rnaseq)[n,], objlist=se, drop=TRUE)
+ma
+```
+
+If you wish to use a RangedSummmarizedExperiment (SummmarizedExperiment is now depreciated) the methods to access the assayData, and phenoData  are assay, and colData.  The featureData is a GRanges object with genomics coordinates and can be assessed with rowData. 
+
+```{r RSE, eval=FALSE}
+rnaseqRSE<-(as(se$rnaseq, "RangedSummarizedExperiment"))
+colnames(se$rnaseqRSE)[1:2]
+```
+
+The biocMultiAssay class is particularly useful, when we add additional phenoData to the multi assay container object.  With a simple list of assays, we would need to update each phenoData, with a biocMultiAssay object, we simply update the master object.  Moreover subsetting of all tumors is simpler too.
+
+Adding to phenoData
+```{r addpheno, eval=FALSE}
+subFile<-file.path(system.file(package="bioc2015multiomicsworkshop"),"data", "TCGA_489_UE.k4.txt")
+x<-read.table(subFile, sep="\t", row.names=1, header=TRUE, as.is=TRUE)
+head(ma@basehub@masterSampleData[,1:5]) 
+ma@basehub@masterSampleData$subtypes<-x[rownames(ma@basehub@masterSampleData),2]
+tail(colnames(ma@basehub@masterSampleData))
+```
+
+extract the subset of matched columns in each dataset
+
+```{r extractcommon,eval=FALSE}
+n<-Reduce(intersect, lapply(se, sampleNames))
+length(n)
+for (i in 1:length(se)) se[[i]]<- se[[i]][,n]
+sapply(se, dim)
+```
+
+# Preprocessing of Data for Integrated Analysis
+To analyse the data using multiple factor analysis (mfa) or multiple coinertia anlaysis (mcia) we need to confirm that the datasets have matched columns and that these are in the same order. 
+With biocMultiAssay class, this consistency check would be done when the object is created. Howvever in a simple list of ExpressionSets, we need to check this ourselves.
+
+To ensure all of the sampleNames are the same, we can use identifcal and look over each pair of sampleNames. Or we can use a trick.  The length of unique vectors, if 2 vectors are not the same, the length will be >1
+
+```{r checkUniq, eval=FALSE}
+sapply(lapply(se, sampleNames), identical, sampleNames(se[[1]]))
+length(unique(lapply(se, sampleNames)))
+```
+
+Tim wil cover many aspects of QC, Whilst all of the methods below can be computed on the entire data matrices, for speed I have filtered each matrix to the first few thousand features with greatest coefficient of variation. The coefficient of variation is the standard deviation divided by the absolute value of the mean, and therefore is likely to capture the genes of most interest. 
+
+Some RNAseq counts of genes are zero (not expressed) in every tumor. We will remove the genes that have a zero or low counts (<50) in most (greater than 65%) tumors. For speed in this tutorials,  each dataset was filtered using using a coefficient of variation filter to reduce the number of variables to approx 2000-4000.
+
+```{r filters, eval=FALSE}
+
+thres =as.vector(ncol(se$rnaseq))*.65
+se$rnaseq<-se$rnaseq[esApply(se$rnaseq,1, function(x) (sum(x<50)))<thres,]
+exprs(se$rnaseq)<-log2(exprs(se$rnaseq)+1)
+se$rnaseq<-se$rnaseq[esApply(se$rnaseq, 1,genefilter::cv(a=0.2)),]
+se$rna<-se$rna[esApply(se$rna, 1,genefilter::cv(a=0.1)),]
+se$gistic<-se$gistic[esApply(se$gistic, 1,genefilter::cv(a=10)),]
+sapply(se, dim)
+
+```
+
+Adding pheno data to each pData in the list, require adding to each pData separtely (using, do.call, sapply or a for loop).  The data table was downloaded from the supplemnet of the TCGA Ov publication. 
+
+```{r addingphenodata, eval=FALSE}
+subFile<-file.path(system.file(package="bioc2015multiomicsworkshop"),"data", "TCGA_489_UE.k4.txt")
+
+subtypes<-read.table(subFile, sep="\t", row.names=1, header=TRUE, as.is=TRUE)
+
+for (i in 1:length(se)) pData(se[[i]]) <-cbind(pData(se[[i]]),subtypes=subtypes[rownames(pData(se[[i]])),2])
+             
+
+#save(se, file="./data/se.rda")
+```
+
+
+```{r sessionInfo}
+sessionInfo()
+```
+

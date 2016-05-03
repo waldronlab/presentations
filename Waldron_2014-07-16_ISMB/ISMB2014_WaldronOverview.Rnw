@@ -1,0 +1,436 @@
+%\VignetteEngine{knitr::knitr}
+%% \VignetteIndexEntry{01 Project Overview -- Slides}
+
+\documentclass[xcolor=dvipsnames]{beamer}
+\setbeamertemplate{caption}[numbered]
+\usepackage{BioconductorSlides}
+\hypersetup{colorlinks,linkcolor=,urlcolor=Blue}
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>{Outline}
+    \tableofcontents[currentsection]
+  \end{frame}
+}
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+
+\title{Trends in Genomic Data Analysis with R / Bioconductor}
+
+\author[me]{Levi Waldron \\ \tiny CUNY School of Public Health, Hunter College \\ \bigskip
+\normalsize Martin T. Morgan \\ \tiny Fred Hutchinson Cancer Research Center \\
+\normalsize Michael Love \\ \tiny Dana-Farber Cancer Center \\
+\normalsize Vincent J. Carey \\ \tiny Harvard Medical School \\
+}
+\date{16 July, 2014}
+
+\maketitle
+
+\section*{Introduction}
+
+\begin{frame}{Introductions}
+\begin{itemize}
+  \item Levi Waldron
+  \begin{itemize}
+    \item Specializations: data curation and meta-analysis, gene expression, predictive modeling
+  \end{itemize}
+  \item Martin T. Morgan: \emph{Genomic data and annotation through AnnotationHub}
+  \begin{itemize}
+    \item \Bioconductor{} project leader
+    \item Specializations: sequence data analysis, genomic annotation
+  \end{itemize}
+  \item Vincent J. Carey \emph{Scalable integrative bioinformatics with Bioconductor}
+  \begin{itemize}
+    \item \Bioconductor{} founding member
+    \item Specializations: eQTL, integrative genomic data analysis, performant computing
+  \end{itemize}
+  \item Michael Love: \emph{RNA-Seq workflows in Bioconductor}
+  \begin{itemize}
+    \item Specializations: RNA-Seq
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+\AtBeginSection[]
+{
+  \begin{frame}{Outline}
+          \tableofcontents[currentsection,currentsubsection]
+    \tableofcontents
+  \end{frame}
+}
+
+\section*{Introduction}
+
+\begin{frame}{Introduction: \Bioconductor}
+  Analysis and comprehension of high-throughput genomic data
+  \begin{itemize}
+    \item \url{http://bioconductor.org}
+    \item $>11$ years old, $824$ packages
+    \end{itemize}
+Themes:
+  \begin{itemize}
+    \item Rigorous statistics
+    \item Reproducible work flows
+    \item Integrative analysis
+    \item distributed development
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Introduction: \Bioconductor}
+  \begin{columns}
+    \column{.5\textwidth}
+    \begin{itemize}
+    \item 1341 PubMed full-text citations in trailing 12 months
+    \item 28,000 web visits / month; 75,000 unique IP downloads / year
+    \item Annual conferences; courses; active mailing list; \ldots
+    \end{itemize}
+    \column{.5\textwidth}
+    \includegraphics[width=\textwidth]{figures/worldmap}
+  \end{columns}
+  \bigskip\par
+  \textbf{\Bioconductor{} Conference}, July 30 - Aug 1, Boston, USA
+\end{frame}
+
+\begin{frame}{Bioc2014: July 30 - Aug 1, 2014 (Boston)}
+\begin{itemize}
+  \item July 30: Developers Day (current and prospective)
+  \item Morning scientific talks
+  \item afternoon practicals (2h hands-on sessions)
+  \begin{itemize}
+    \item Introduction, Variant Calling, Intro Sequence Analysis, RNA-seq differential expression, ChIP-seq, 450K methylation data analysis, genomic annotation resources, meta-analysis, parallel computing... 
+  \end{itemize}
+\end{itemize}
+  \bigskip\par
+\begin{center}
+\url{https://register.bioconductor.org/BioC2014}
+\end{center}
+\end{frame}
+
+
+\begin{frame}{Introduction: Application areas of \Bioconductor{}}
+\begin{itemize}
+  \item Microarray analysis: expression, copy number, SNPs, methylation, \ldots
+  \item Sequencing: RNA-seq, ChIP-seq, called variants, \ldots 
+  \begin{itemize}
+    \item Especially \emph{after} assembly / alignment
+  \end{itemize}
+  \item Annotation: genes, pathways, gene models (exons, transcripts, etc.), \ldots
+  \item Epigenetics
+  \item Gene set enrichment analysis
+  \item Network analysis
+  \item Flow cytometry
+  \item Proteomics and metabolomics
+  \item Cheminformatics
+  \item Images and high-content screens
+\end{itemize}
+\end{frame}
+
+\section*{Help}
+
+\begin{frame}{Levels of documentation}
+\Bioconductor{} documentation exists at several levels:
+\begin{itemize}
+  \item \url{http://www.bioconductor.org/help}
+  \begin{itemize}
+    \item Workflows, mailing lists, newsletters, courses, blogs, books
+  \end{itemize}
+  \item \textbf{Workflows:} Common tasks spanning multiple packages, \url{http://www.bioconductor.org/help/workflows/}
+  \begin{itemize}
+    \item \emph{e.g.}: Sequence Analysis, RNAseq differential expression, oligonucleotide arrays, variants, accessing annotation data, annotating ranges\ldots
+  \end{itemize}
+  \item \textbf{Package Vignettes:} Working ``literate code'' demonstrating use of a package
+  \begin{itemize}
+    \item Some vignettes of mature packages are extensive introductions, \emph{e.g.} limma
+  \end{itemize}
+  \item \textbf{Function man pages} and Reference Manuals
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Additional Sources of Documentation}
+\begin{itemize}
+  \item \textbf{Courses and Workshops:}
+  \begin{itemize}
+    \item \url{http://www.bioconductor.org/help/course-materials/}
+    \item Notes from dozens of courses and workshops, including today's.
+  \end{itemize}
+  \item \href{http://bioconductor.org/packages/release/BiocViews.html}{\textbf{BiocViews}} hierarchical controlled vocabulary
+  \begin{itemize}
+  \item Software (824)
+  \item AnnotationData (867)
+  \item ExperimentData (202)
+  \end{itemize}
+  \item \textbf{Classic textbooks:}
+  \begin{itemize}
+    \item \href{http://bioconductor.org/help/publications/books/bioinformatics-and-computational-biology-solutions/}{Bioinformatics and Computational Biology Solutions Using R and Bioconductor}
+    \item \href{http://bioconductor.org/help/publications/books/bioconductor-case-studies/}{Bioconductor Case Studies}
+    \item \href{http://www.bioconductor.org/help/publications/books/r-programming-for-bioinformatics/}{R Programming for Bioinformatics}
+  \end{itemize}
+  \item \textbf{\Bioconductor{} mailing list}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Key Data Structures}
+\begin{table}
+\centering
+\begin{tabular}{p{.4\textwidth}p{.6\textwidth}}
+  Container (package) & Data type \\\hline\noalign{\smallskip}
+  \tt{ExpressionSet} \hbox{(\Biocpkg{Biobase})} & 
+  Matrix-like dataset plus experiment/sample/feature metadata\\
+  \tt{SummarizedExperiment} \hbox{(\Biocpkg{GenomicAlignments})} & 
+  Analogous to \tt{ExpressionSet}, but features defined in genomic coordinates.\\\hline
+  \tt{GRanges} \hbox{(\Biocpkg{GenomicRanges})} & 
+  Genomic coordinates and associated qualitative and quantitative information, e.\,g., gene symbol, coverage, $p$-value.\\
+\end{tabular}
+\caption{Key common data structures in \Bioconductor{}. \tt{SummarizedExperiment} and \tt{GRanges} are standard for genome-linked data; \tt{ExpressionSet} is standard for most other experimental data.\label{tab:integrated}}
+\end{table}
+\end{frame}
+
+\section*{Domain areas}
+
+\begin{frame}{Microarray Analysis}
+\begin{itemize}
+  \item 300 packages with microarray biocViews term
+  \begin{itemize}
+    \item Classic packages: \Biocpkg{affy} (RMA preprocessing), \Biocpkg{limma} (linear modeling)
+    \item Newer packages: \Biocpkg{oligo} (tools for modern microarrays), \Biocpkg{pdInfoBuilder} (for building annotation packages)
+  \end{itemize}
+  \item All kinds of arrays supported
+  \begin{itemize}
+    \item See \href{http://www.bioconductor.org/help/workflows/arrays/}{Arrays workflow}
+    \item Excellent Vignettes, \emph{e.g.} of \Biocpkg{limma} and \Biocpkg{affy}
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{RNA-seq differential expression analysis}
+\begin{itemize}
+  \item 55 packages with RNASeq biocViews term
+  \begin{itemize}
+  \item \Biocpkg{edgeR}, \Biocpkg{DESeq2} for differential abundance analysis
+  \item \Biocpkg{Rsubread} for read alignment, quantification and mutation discovery
+  \item \Biocpkg{QuasR} provides an integrated work flow using \Biocpkg{Rbowtie} for alignment and \Biocpkg{GenomicRanges} for read counts.
+  \item \Biocpkg{cummeRbund} for post-processing of \emph{cufflinks} isoform assemblies
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Epigenetics}
+\begin{itemize}
+  \item 53 packages with Epigenetics-related biocViews term
+  \begin{itemize}
+    \item 450K methylation arrays: {\bf \Biocpkg{minfi}, \Biocpkg{methylumi}, \Biocpkg{lumi}}, \Biocpkg{methyAnalysis}, \Biocpkg{wateRmelon}, \Biocpkg{ChAMP}
+    \item Whole-genome bisulfite sequencing: \Biocpkg{bsseq}, \Biocpkg{MethylSeekR}, \Biocpkg{BiSeq}, \Biocpkg{QuasR}
+    \item affinity or restriction enzyme based assays such as ME-dip or MBD-seq: \Biocpkg{Repitools}, \Biocpkg{MEDIPS}
+    \item ChIP-seq: \Biocpkg{DiffBind}, \Biocpkg{DBChIP}, \Biocpkg{ChIPpeakAnno}
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Bioconductor ecosystem of sequencing tools}
+\includegraphics[width=\textwidth]{figures/SequencingEcosystem}
+
+{\tiny Credit: Martin Morgan}
+\end{frame}
+
+\begin{frame}{String-related data structures and tools}
+\begin{table}[htbp]
+\begin{center}
+\scriptsize
+\begin{tabular}{p{.4\textwidth}p{.6\textwidth}}
+\textbf{Use case} & \textbf{Packages} \\ \hline \hline
+  Basic operations on \tt{DNA\-String} and \tt{DNA\-String\-Set}
+  objects & \Biocpkg{Biostrings}\\
+\hline
+  Extract  sequences of an arbitrary set of regions &
+  \Biocpkg{BSgenome}::\tt{getSeq} \\
+\hline
+  Extract transcript, CDS, or promoter sequences from a reference
+  genome and gene model &
+  \Biocpkg{GenomicFeatures} \\
+\hline
+  Import sequences from BAM file &
+  \Biocpkg{Rsamtools}, \Biocpkg{GenomicAlignments} \\
+\hline
+  Pileup functions & \Biocpkg{Genomic\-Alignments}
+  (\tt{pileLettersAt} and \tt{stackStringsFromBam}),
+  \Biocpkg{Rsamtools}::\tt{applyPileups},
+  \Biocpkg{VariantTools}::\tt{tallyVariants} \\
+\hline
+  Representation of ref/alt alleles &
+  \Biocpkg{VariantAnnotation}::\tt{VCF} and
+  \tt{VRanges} classes) \\
+\hline
+  Predict amino acid coding & \Biocpkg{Biostrings}::\tt{translate}, \Biocpkg{VariantAnnotation}::\tt{predictCoding} \\
+\hline
+  Short read quality assessment & \Biocpkg{ShortRead}::\tt{qa} \\
+\hline
+  Assess technical bias in NGS data & \Biocpkg{seqbias} \\
+\hline
+  Identify low-complexity sequences & \Biocpkg{ShortRead}::\tt{dustyScore} \\
+\hline
+  Measure CpG enrichment & \Biocpkg{MEDIPS}::\tt{MEDIPS.CpGenrich} \\
+\hline
+\end{tabular}
+\end{center}
+\label{table:String_related_packages_in_Bioconductor}
+\end{table}
+\end{frame}
+
+\begin{frame}{String-related data structures and tools (cont'd)}
+\begin{table}[htbp]
+\begin{center}
+\scriptsize
+\begin{tabular}{p{.4\textwidth}p{.6\textwidth}}
+\textbf{Use case} & \textbf{Packages} \\ \hline \hline
+  Motif matching & \Biocpkg{Biostrings}::\tt{matchPWM}
+  and \Biocpkg{MotIV}::\tt{motifMatch} \\
+\hline
+  Motif discovery & \Biocpkg{motifRG}, \Biocpkg{rGADEM}\\
+\hline
+Find palindromic regions &
+  \Biocpkg{Biostrings}::\tt{findPalindromes} \\
+\hline
+  Find intramolecular triplexes (H-DNA) in DNA sequences &
+  \Biocpkg{triplex} \\
+\hline
+  Map probe sequences to a reference genome &
+  \Biocpkg{altcdfenvs}::\tt{matchAffyProbes}, \Biocpkg{waveTiling}::\tt{filterOverlap} \\
+\hline
+  Find probe positions in a set of gene sequences &
+  \Biocpkg{GeneRegionScan}::\tt{findProbePositions} \\
+\hline
+  Specialized matching/alignment tools & \Biocpkg{DECIPHER} 
+  (\tt{AlignSeqs}, \tt{AlignProfiles}, and
+  \tt{FindChimeras}) \\
+\hline
+  Design of hybridization probes & \Biocpkg{DECIPHER}  \\
+\hline
+  Import and analysis of Roche's 454 sequencing data &
+  \Biocpkg{R453Plus1Toolbox} and
+  \Biocpkg{rSFFreader}  \\
+\hline
+\end{tabular}
+\end{center}
+\label{table:String_related_packages_in_Bioconductor}
+\end{table}
+\end{frame}
+
+\begin{frame}
+\begin{table}
+\centering
+\begin{tabular}{ll}
+Operation type & Functions \\ \hline
+Arithmetic & \Rfunction{shift}, \Rfunction{resize}, \Rfunction{restrict}, \Rfunction{flank} \\
+Set & \Rfunction{intersect}, \Rfunction{union}, \Rfunction{setdiff}, \Rfunction{gaps} \\
+Summary & \Rfunction{coverage}, \Rfunction{reduce}, \Rfunction{disjoin} \\
+Comparison & \Rfunction{findOverlaps}, \Rfunction{nearest}, \Rfunction{order} \\
+\end{tabular}
+\caption{Some of the important functions in the {\tt ranges} algebra. They are flexible and fast.}
+\label{rangestable}
+\end{table}
+\end{frame}
+
+\begin{frame}{Visualization}
+\begin{table}[htbp]
+  \centering
+\begin{tabular}{p{.4\textwidth}p{.6\textwidth}}
+  Domain & Packages \\ \hline
+  \hline\noalign{\smallskip}
+  (Epi-)Genomic Data & \Biocpkg{Gviz} and \Biocpkg{epivisr} (genome browsers), \Biocpkg{rtracklayer} (UCSC) \\ \hline
+  Networks & \Biocpkg{Rgraphviz}, \Biocpkg{RCytoscape} \\ \hline
+  Chemical Structure & \Biocpkg{ChemmineR} \\ \hline
+  Flow Cytometry & \Biocpkg{flowViz}, \Biocpkg{flowPlots}, \Biocpkg{spade} \\ \hline
+%  Infrastructure & \Biocpkg{biovizBase}, \Biocpkg{MutableRanges}, \Biocpkg{qtpaint} \\ \hline
+  Big Data & \Biocpkg{supraHex} \\ \hline
+\end{tabular}
+\caption{134 Bioconductor packages are currently tagged with the 'Visualization' keyword.}
+\label{tab:Vizpacks}
+\end{table}
+\end{frame}
+
+\begin{frame}{Annotation resources}
+\begin{table}
+  \centering
+  \begin{tabular}{llp{.7\textwidth}}
+    &  &  \\\hline\noalign{\smallskip}
+    \multicolumn{3}{l}{Pre-built packages} \\
+    & \Rpackage{org.*} & Identifier mapping (\Biocpkg{AnnotationDbi}) \\
+    & \Rpackage{TxDb.*} & Gene models (\Biocpkg{GenomicFeatures})\\
+    & \Rpackage{BSgenome.*} & Whole-genome sequences (\Biocpkg{BSgenome})\\[1ex]
+    \multicolumn{3}{l}{Web access (examples)} \\
+    & \Biocpkg{biomaRt} & Ensembl (and other) biomart \\
+    & \Biocpkg{rtracklayer} & UCSC genome browser tracks \\
+    & \Biocpkg{ensemblVEP} & Ensembl Variant Effect Predictor\\
+    & \Biocpkg{PSICQUIC} & Molecular interactions data bases\\[1ex]
+   \multicolumn{3}{l}{\Biocpkg{AnnotationHub} (Bioc-hosted transparent-access databases)}\\ 
+    && UCSC, ENCODE, Ensembl, dbSNP\\
+    \hline
+  \end{tabular}
+  \caption{Annotation resources in \Bioconductor{}.}
+\end{table}
+\end{frame}
+
+\begin{frame}{Experimental data packages}
+\begin{itemize}
+  \item 202 packages with \tt{ExperimentData} biocViews
+  \item Relatively static data for:
+  \begin{itemize}
+    \item Package testing (e.g. \Biocpkg{ALL})
+    \item Reproducible analysis for published papers (\emph{e.g.} \Biocpkg{Hiiragi2013})
+    \item Meta-analysis of curated cancer datasets (\emph{e.g.} \Biocpkg{curatedOvarianData}, \Biocpkg{curatedCRCData}, \Biocpkg{curatedBladderData})
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Acquiring experimental data from online databases}
+\begin{itemize}
+  \item \Biocpkg{GEOquery}: Import data from NCBI Gene Expression Omnibus (GEO)
+  \item \Biocpkg{GeoMetaDB}: SQLite database of all GEO metadata
+  \item \Biocpkg{SRAdb}: SQLite database of NCBI Short Read Archive + download / send tracks to IGV
+  \item \Biocpkg{ArrayExpress}: Import ArrayExpress data
+  \item \Rpkg{CGDS-R}: cBioPortal TCGA import
+  \item \href{https://sagebionetworks.jira.com/wiki/display/SYNR/How+to+install+the+Synapse+R+Client}{Synapse R Client} for TCGA
+\end{itemize}
+\end{frame}
+
+\section*{Summary - Myths about R/Bioconductor}
+
+\begin{frame}[fragile]{Myths about R/Bioconductor (cont'd)}
+\textbf{Myth \#1}: R/Bioconductor is hard to learn
+  \bigskip\par
+\textbf{Reality}: Multi-level documentation (see above), RStudio Integrated Development Environment, online courses ease transitioning 
+ \bigskip\par
+\begin{center}
+  \includegraphics[width=0.7\textwidth]{figures/RStudio}
+\end{center}
+\end{frame}
+
+\begin{frame}{Summary - Myths about R/Bioconductor}
+\textbf{Myth \#2}: R/Bioconductor is slow / uses too much memory
+  \bigskip\par
+
+\textbf{Reality}: R/Bioconductor \emph{can} slow or memory intensive, depending on how it's used:
+  \bigskip\par
+
+\begin{itemize}
+  \item vectorization
+  \item \Rpkg{Rcpp}, traditional \textbf{C} and \textbf{Fortran} function interfaces
+  \item library(\Rpkg{data.table})
+  \item library(\Rpkg{sqldf})
+  \item on-disk data representations, \emph{e.g.} \Biocpkg{BSgenome} data packages
+  \item \Rpkg{knitr} provides caching with dependency tracking
+  \item \Rpkg{parallel}, \Biocpkg{BiocParallel} for parallelization
+\end{itemize}
+\end{frame}
+
+\section*{Acknowledgements}
+
+\begin{frame}{Acknowledgements}
+  \begin{itemize}
+  \item slide contributions: Wolfgang Huber, Vincent Carey, Robert Gentleman,Marc Carlson, Benilton S.~Carvalho, Hector Corrada Bravo, Sean Davis, Laurent Gatto, Thomas Girke, Raphael Gottardo, Florian Hahne, Kasper Hansen, Rafael A.~Irizarry, Michael Lawrence, Michael I.~Love, James MacDonald, Valerie Obenchain, Andrzej K.~Ole\'s, Herv\'e Pag\`es, Paul Shannon, Gordon Smyth, Dan Tenenbaum, Martin Morgan  
+  \item The \Bioconductor{} community
+  \end{itemize}
+\end{frame}
+
+\end{document}
+

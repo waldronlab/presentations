@@ -1,0 +1,178 @@
+---
+title: "TCGAloading"
+vignette: >
+  %\VignetteIndexEntry{TCGAloading}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+author: "Marcel Ramos, Levi Waldron"
+date: "July 13, 2015"
+output: html_document
+---
+
+```{r, echo=FALSE, results="hide"}
+library(knitr)
+opts_chunk$set(error=FALSE)
+```
+
+# Installing RTCGAToolbox development version
+
+This vignette uses a development version of the RTCGAToolbox Bioconductor library, and this chunk makes sure you have the right one installed from Marcel's Github page:
+```{r installation, message=FALSE}
+tmp.file <- tempfile()
+download.file("https://raw.githubusercontent.com/LiNk-NY/RTCGAToolbox/master/DESCRIPTION",    destfile=tmp.file, method="wget")
+correct.version <- sub("Version: ", "", readLines(tmp.file)[4])
+if(!require(RTCGAToolbox) || 
+     !identical(packageDescription("RTCGAToolbox")$Version, correct.version) || 
+     !identical(packageDescription("RTCGAToolbox")$GithubUsername, "LiNK-NY")){
+  library(BiocInstaller)
+  biocLite("LiNK-NY/RTCGAToolbox")
+}
+```
+
+# Overview
+
+This vignette shows how to load TCGA multi-assay datasets and convert
+them to Bioconductor core objects (ExpressionSet, GRanges, and
+GRangesList). 
+
+# Loading data from TCGA
+
+All fully-open data from TCGA that is accessible through the
+[firehose_get](https://confluence.broadinstitute.org/display/GDAC/Download)
+command-line program.
+
+You have to select a "run date" for processed data:
+
+```{r runningdates, message=FALSE}
+library(RTCGAToolbox)
+(rundates <- getFirehoseRunningDates())
+```
+
+And an "analysis date" for analyzed data, such as GISTIC2 regions of
+recurrent copy number variation:
+
+```{r analysisdates}
+  (analysisdates <- getFirehoseAnalyzeDates())
+```
+
+For exactly reproduceable results you would hard-code one of these,
+since data can change over time as samples are added or new algorithms
+are used for processing and analysis, but here will just use the most
+recent versions rundates[1] and analysisdates[1].
+
+The following commands (not evaluated) will fetch data for five cancer
+types.  You can find the codes for all TCGA cancer types from the [TCGA data portal here](https://tcga-data.nci.nih.gov/tcga/).
+
+```{r getfirehosedatacalls, eval=FALSE}
+ov <- getFirehoseData("OV", runDate=rundates[1], gistic2_Date=analysisdates[1], RNAseq_Gene=TRUE, 
+        miRNASeq_Gene=TRUE, RNAseq2_Gene_Norm=TRUE, CNA_SNP=TRUE, CNV_SNP=TRUE, CNA_Seq=TRUE, 
+        CNA_CGH=TRUE,  Methylation=TRUE, Mutation=TRUE, mRNA_Array=TRUE, miRNA_Array=TRUE, 
+        RPPA=TRUE, todir = NULL)
+ 
+gbm <- getFirehoseData("GBM", runDate=rundates[1], gistic2_Date=analysisdates[1], RNAseq_Gene=TRUE, 
+       	miRNASeq_Gene=TRUE, RNAseq2_Gene_Norm=TRUE, CNA_SNP=TRUE, CNV_SNP=TRUE, CNA_Seq=TRUE, 
+        CNA_CGH=TRUE,  Methylation=TRUE, Mutation=TRUE, mRNA_Array=TRUE, miRNA_Array = TRUE,  
+        RPPA=TRUE, todir = NULL)
+ 
+coad <- getFirehoseData("COAD", runDate=rundates[1], gistic2_Date=analysisdates[1], RNAseq_Gene=TRUE, 
+        miRNASeq_Gene=TRUE, RNAseq2_Gene_Norm=TRUE, CNA_SNP = TRUE, CNV_SNP=TRUE, CNA_Seq = TRUE, 
+        CNA_CGH = TRUE, Methylation = TRUE, Mutation = TRUE, mRNA_Array = TRUE, miRNA_Array = TRUE, 
+        RPPA = TRUE, todir = NULL)
+ 
+laml <- getFirehoseData("LAML", runDate=rundates[1], gistic2_Date=analysisdates[1], RNAseq_Gene=TRUE, 
+          miRNASeq_Gene=TRUE, RNAseq2_Gene_Norm=TRUE, CNA_SNP = TRUE, CNV_SNP=TRUE, CNA_Seq = TRUE, 
+          CNA_CGH = TRUE, Methylation = TRUE, Mutation = TRUE, mRNA_Array = TRUE, miRNA_Array = TRUE, 
+          RPPA = TRUE, todir = NULL)
+ 
+blca <- getFirehoseData("BLCA", runDate=rundates[1], gistic2_Date=analysisdates[1], RNAseq_Gene=TRUE, 
+          miRNASeq_Gene=TRUE, RNAseq2_Gene_Norm=TRUE, CNA_SNP = TRUE, CNV_SNP=TRUE, CNA_Seq = TRUE, 
+          CNA_CGH = TRUE, Methylation = TRUE, Mutation = TRUE, mRNA_Array = TRUE, miRNA_Array = TRUE, 
+          RPPA = TRUE, todir = NULL)
+```
+
+Instead, we'll just load the acute myeloid leukema data from the
+bioc2015multiomicsworkshop for demonstration:
+
+```{r lamlload}
+library(bioc2015multiomicsworkshop)
+data(laml)
+laml
+```
+
+We can extract the clinical data and write it to disk (no extractor function for the FirehoseData class exists to do this, but we will see below how to extract clinical with assay data below).
+```{r}
+write.csv(laml@Clinical, file="laml_clinical.csv")
+```
+
+# Creating Bioconductor objects
+What we really want are Bioconductor core data objects.  The extract()
+function from RTCGAToolbox creates the appropriate object.  If
+clinical=FALSE, it will create simple matrices and GRanges, if
+clinical=TRUE, it will create ExpressionSet and SummarizedExperiment
+objects.  
+
+Note that there is an unfortunate inconsistency in the the names of
+the assays between what we saw above in the show method above for the
+laml object, and in the arguments to getFirehoseData().  The extract()
+function uses the same data types as in the arguments to
+getFirehoseData(), with case and underscore-insensitive matching.  The
+following choices are available:
+
+```{r}
+choices <- tolower(gsub("_", "", c("RNAseq_Gene", "miRNASeq_Gene",
+             "RNAseq2_Gene_Norm", "CNA_SNP", "CNV_SNP", "CNA_Seq",
+             "CNA_CGH", "Methylation", "Mutation", "mRNA_Array",
+             "miRNA_Array", "RPPA")))
+```
+
+For example, for copy number we get a GRangesList:
+
+```{r cna}
+cna <- extract(laml, "cnasnp", clinical=TRUE)
+cna
+```
+
+And for RNAseq we get an ExpressionSet:
+
+```{r rnaseq}
+rnaseq <- extract(laml, "rnaseqgene", clinical=TRUE)
+rnaseq
+```
+
+There is partial but not full overlap in the patients:
+```{r overlap}
+summary(names(cna) %in% sampleNames(rnaseq))
+```
+
+They have the same clinical data, albeit as a DataFrame for the
+GRangesList, and an AnnotatedDataFrame for the ExpressionSet:
+
+```{r metadataeg}
+elementMetadata(cna)[1:2, 1:4]
+pData(rnaseq)[1:2, 1:4]
+```
+
+Note that in the first two rows of the cna object, we have two different samples for the same patient (tcga-ab-2802 is the patient identifier, -03 and -11 are sample types).  See the [TCGA barcode information](https://wiki.nci.nih.gov/display/TCGA/TCGA+barcode), and the [Code Tables Report](https://tcga-data.nci.nih.gov/datareports/codeTablesReport.htm?codeTable=Sample%20type) for an explanation of the sample types. 03 is "Primary Blood Derived Cancer - Peripheral Blood" and 11 is "Solid Tissue Normal"
+
+# Extracting all possible Bioconductor objects
+
+See what Bioconductor objects can be extracted from laml.  Where a data type is not available, extract() returns an error:
+
+```{r dses}
+dses <- lapply(choices, function(choice) try(extract(laml, choice, clinic=TRUE), silent=TRUE))
+names(dses) <- choices
+dses
+```
+
+
+# Notes on integration:
+
+* Conversion between gene matrices and range-based representations is still cumbersome
+* see key2GRanges() function from (github.com/vjcitn/biocMultiAssay) - will be updated before CHRLOC is deprecated for OrganismDb packages.
+* SummarizedExperiment / ExpressionSet coersion methods:
+
+```{r}
+library(SummarizedExperiment)
+rnaseqSE <- makeSummarizedExperimentFromExpressionSet(rnaseq)
+rnaseqSE
+```
