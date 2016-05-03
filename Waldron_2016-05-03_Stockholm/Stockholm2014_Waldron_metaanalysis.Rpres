@@ -228,11 +228,11 @@ Resources
 * *Bioconductor packages*: [curatedOvarianData](http://bioconductor.org/packages/curatedOvarianData/), [curatedBladderData](http://bioconductor.org/packages/curatedBladderData/), [curatedCRCData](http://bioconductor.org/packages/curatedOvarianData/), [doppelgangR](http://bioconductor.org/packages/doppelgangR/), [simulatorZ](http://bioconductor.org/packages/simulatorZ/)
 * Book chapter: Waldron L, Riester M: [Meta-Analysis in Gene Expression Studies.](http://waldronlab.org/wp-content/uploads/2016/03/Geneexpressionmeta-analyses.pdf) Methods Mol. Biol. 2016, 1418:161–176.
 * Longer workshop materials from [Bioc2014](http://bioconductor.org/help/course-materials/2014/BioC2014/)
-* Presentation [code on Github](https://github.com/waldronlab/presentations/tree/master/Waldron_2016-05-03_Stockholm)
+* Code to make this presentation [on Github](https://github.com/waldronlab/presentations/tree/master/Waldron_2016-05-03_Stockholm)
 
 Conclusions
 ========================================================
 - many alternatives for meta-analysis of genomics experiments have been proposed, none as flexible or well-understood as traditional approaches
 - simple pooling makes it difficult to assess heterogeneity arising from genomic or clinical data
 - metafor R package is highly recommendable and well-documented [Viechtbauer 2010](http://www.jstatsoft.org/v36/i03/paper)
-- For _multi-assay_ experiments, [BiocMultiAssay](http://bioconductor.org/packages/BiocMultiAssay) in bioc-devel
+- For _multi-assay_ experiments, [MultiAssayExperiment](http://bioconductor.org/packages/MultiAssayExperiment) in bioc-devel
