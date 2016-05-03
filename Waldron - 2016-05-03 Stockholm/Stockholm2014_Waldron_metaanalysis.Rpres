@@ -1,0 +1,238 @@
+```{r setup, include=FALSE}
+opts_chunk$set(cache=TRUE)
+```
+
+Meta-analysis for genomic data - a short tutorial
+========================================================
+Stockholm workshop: Data Integration in Biomedical Research
+--------------------------------------------------------
+
+author: Levi Waldron  
+date: May 3, 2016
+
+Outline
+========================================================
+- Introduction and Motivation
+- Preparation
+  - Downloading datasets
+  - Curation
+  - Preprocessing and gene mapping
+  - Duplicate checking
+- Fixed and Random Effects Synthesis
+  - Assessing Heterogeneity
+- Leave-one-dataset-in and Leave-one-dataset-out Validation of Prediction Models
+
+Scope: what is meta-analysis?
+========================================================
+- Broad definition: the full scope of among-study analysis
+- Narrow definition: a synthesis of per-study estimates
+
+- Not: pooling of per-patient data
+
+> “We understand meta-analysis as being the use of statistical techniques to combine the results of studies addressing the same question into a summary measure.”
+   <br /> <br /> Villar et al. (2001)
+
+Scope: what is meta-analysis?
+========================================================
+![Baggstrom et al.](figures/Baggstrometal.png)
+
+Classic meta-analysis: Third-generation agents compared with best supportive care. Differences in 1-year survival proportions (Baggstrom _et al._ 2007).
+
+- In genomics we extend to thousands of variables
+
+Preparation: downloading datasets (cont'd)
+========================================================
+- A couple helpful functions from [LeviRmisc](https://github.com/lwaldron/LeviRmisc)
+   - getGEO2(): consolidate and simplify getGEO() output
+   - geoPmidLookup(): look up experiment and publication data from GEO and Pubmed, put in dataframe
+```{r, eval=FALSE}
+library(LeviRmisc)
+df <- geoPmidLookup(c("GSE26712", "PMID18593951")) 
+```
+
+Preparation: curation
+========================================================
+- per-sample metadata must be standardized across studies
+- process is error-prone and it is easy to miss mistakes in high-throughput analysis
+- therefore template-based syntax checking highly recommendable, e.g. see my [template](https://bitbucket.org/lwaldron/curatedovariandata/src/tip/curation/ovarian/src/template_ov.csv) and [checker](https://bitbucket.org/lwaldron/curatedovariandata/src/tip/src/checkCurated.R) for [curatedOvarianData](http://www.bioconductor.org/packages/release/data/experiment/html/curatedOvarianData.html).
+
+Preparation: preprocessing and gene mapping
+========================================================
+- it is possible and desirable to synthesize across array platforms
+- common preprocessing is desirable but not necessary
+  - deal with non-standardized preprocessing through gene scaling, e.g. z-score
+- must map probeset IDs to common gene identifiers
+  - microarray: if using a representative probeset for a gene, best to use the same one in each dataset
+  - RNA-seq: map to same genomic build across datasets
+  
+Preparation: duplicate checking
+========================================================
+- duplicate samples bias meta-analysis
+- be very cautious of multiple studies from the same institution - check sample identifiers and expression profiles
+- Waldron _et al._ The doppelgänger effect: hidden duplicates in databases of transcriptome profiles. JNCI 2016 (In Press)
+    + [doppelgangR](http://bioconductor.org/packages/doppelgangR/) Bioconductor package
+
+
+Fixed and Random Effects Synthesis
+========================================================
+* Fixed-effects model
+    + Effect size is the _same_ in every study, variation in estimates is due to individual variability only 
+
+* Random-effects model
+    + Effect size is _normally distributed_ across studies, variation in estimates is due to individual variability _and_ study variability
+
+Assessing Heterogeneity
+========================================================
+- Standard hypothesis test for heterogeneity: under the null hypothesis of no heterogeneity between studies ($\tau = 0$), 
+$$
+Q \sim \chi^2_{K-1}
+$$
+ 
+- Standard descriptions of heterogeneity: 
+  - $\tau^2$: estimate of total amount of heterogeneity
+  - $I^2$: % of total variability due to heterogeneity
+  - $H^2$: total variability / within-study variance
+
+- For further info:
+   - Viechtbauer W: _Conducting meta-analyses in R with the metafor package._ J. Stat. Softw. 2010.
+
+Example 1: Is CXCL12 gene a prognostic factor for ovarian cancer? 
+========================================================
+Load the curatedOvarianData package, look at available datasets:
+```{r}
+library(curatedOvarianData)
+data(package="curatedOvarianData")
+```
+
+Load (and check out) rules defined in default configuration file:
+```{r, echo=FALSE, eval=FALSE}
+download.file("https://bitbucket.org/lwaldron/ovrc4_sigvalidation/raw/tip/input/patientselection.config", method="wget", destfile="patientselection.config")
+download.file("https://bitbucket.org/lwaldron/ovrc4_sigvalidation/raw/tip/src/createEsetList_source.R", method="wget", destfile="createEsetList.R")
+```
+
+```{r}
+source("patientselection.config")
+impute.missing <- TRUE
+keep.common.only <- TRUE
+```
+
+Example 1 (cont'd)
+========================================================
+Create list of ExpressionSets meeting criteria:
+```{r, results="hide"}
+source("createEsetList.R")
+```
+
+```{r}
+length(esets)
+```
+
+Example 1 (cont'd)
+========================================================
+- Calculate "effect size" log(HR) and S.E. for one dataset:
+<small>
+```{r}
+runCox <- function(eset, probeset="CXCL12"){
+  library(survival)
+  eset$y <- Surv(eset$days_to_death, eset$vital_status == "deceased")
+  if(probeset %in% featureNames(eset)){
+    obj <- coxph(eset$y ~ scale(t(exprs(eset[probeset, ]))[, 1]))
+    output <- c(obj$coefficients, sqrt(obj$var))
+    names(output) <- c("log.HR", "SE")
+  }else{output <- NULL}
+    output}
+runCox(esets[[1]])
+```
+</small>
+
+Example 1 (cont'd)
+========================================================
+- Calculate "effect size" (HR) and Standard Error for all datasets:
+
+```{r}
+study.coefs <- t(sapply(esets, runCox)); head(study.coefs)
+```
+
+Example 1 (cont'd): forest plot
+========================================================
+```{r, height=5, echo=FALSE}
+library(metafor)
+res.fe <- metafor::rma(yi=study.coefs[, 1], sei=study.coefs[, 2], method="FE")
+forest.rma(res.fe, slab=gsub("_eset$","",rownames(study.coefs)), atransf=exp)
+```
+
+Example 1 (cont'd): FE vs. RE
+========================================================
+```{r}
+(res.re <- metafor::rma(yi=study.coefs[, 1], sei=study.coefs[, 2], method="DL"))
+```
+
+Example 1 (cont'd): closing comments
+========================================================
+
+- Between-study variability is completely consistent with _zero heterogeneity_ between studies
+- Replace simple univariate regression with multivariate regression to correct for known clinical factors (e.g. see [Ganzfried _et. al._ 2013](http://database.oxfordjournals.org/content/2013/bat013.full.pdf+html))
+- Replace HR with any coefficient + S.E.
+- Replace single probeset with any fully-specified score or classifier
+  - noting that random gene sets are likely to be prognostic ([Waldron _et al._ JNCI 2014](http://jnci.oxfordjournals.org/cgi/content/full/dju049?ijkey=Ka4IzzSGdcMM131&keytype=ref), [Venet _et al._ PLoS Comp Bio 2011](http://dx.plos.org/10.1371/journal.pcbi.1002240))
+
+
+Example 2: Leave-one-dataset-out validation
+========================================================
+
+- Validation of prediction models
+- Use 1 study to test, K-1 studies to train
+- Use meta-analysis of K-1 studies to get univariate coefficients _e.g._ to generate Tukey's "Compound Covariate" model 
+```{r, eval=FALSE}
+LODO.res <- metaCMA(esets,coefs=gene.coefs,n=200, rma.method="FE") 
+```
+
+Example 2: Leave-one-dataset-out validation (cont'd)
+========================================================
+
+&nbsp;
+
+<img src="figures/RiesterSuppS10.png" height="500px" />
+
+***
+  
+&nbsp;  
+&nbsp;  
+&nbsp;
+  
+Leave-one-dataset-out validation of a survival signature.  ([Riester _et al._ JNCI 2014](http://jnci.oxfordjournals.org/content/early/2014/04/03/jnci.dju048.full?keytype=ref&ijkey=jtsznWsOzdpfQza))
+
+Leave-one-dataset-in validation
+========================================================
+left: 70%
+- Independent datasets for evaluation of prediction models or gene signatures
+- Train and test using all dataset pairs ([Waldron _et al._ JNCI 2014](http://jnci.oxfordjournals.org/cgi/content/full/dju049?ijkey=Ka4IzzSGdcMM131&keytype=ref), [Bernau _et al._ Bioinformatics 2014](http://bioinformatics.oxfordjournals.org/content/30/12/i105), [Zhao _et al._ Bioinformatics 2014](http://bioinformatics.oxfordjournals.org/content/early/2014/07/23/bioinformatics.btu488.long))
+
+***
+
+![zmatrix](figures/zmatrix.png)
+
+Leave-one-dataset-in validation (cont'd)
+========================================================
+<img src="figures/F5.large.jpg" width="800px" height="400px" />
+<small>
+"Improvement over random signatures (IOR)" score of gene signatures relative to random gene signatures, equalizing the influences of authors’ algorithms for generating risk scores, quality of the original training data, and gene signature size ([Waldron _et al._ JNCI 2014](http://jnci.oxfordjournals.org/cgi/content/full/dju049?ijkey=Ka4IzzSGdcMM131&keytype=ref)).   
+source scripts: [genMumatrix.R](https://bitbucket.org/lwaldron/ovrc4_sigvalidation/src/tip/src/genMumatrix.R) and [analyseMumatrix.R](https://bitbucket.org/lwaldron/ovrc4_sigvalidation/src/tip/src/analyseMumatrix.R)
+</small>
+
+Resources
+========================================================
+
+* [Riester _et al._ JNCI 2014](http://jnci.oxfordjournals.org/content/early/2014/04/03/jnci.dju048.full?keytype=ref&ijkey=jtsznWsOzdpfQza) and associated [Bitbucket page](https://bitbucket.org/lima1/ovrc4_signew)
+* ([Waldron _et al._ JNCI 2014](http://jnci.oxfordjournals.org/cgi/content/full/dju049?ijkey=Ka4IzzSGdcMM131&keytype=ref)) and associated [Bitbucket page](https://bitbucket.org/lwaldron/ovrc4_sigvalidation)
+* *Bioconductor packages*: [curatedOvarianData](http://bioconductor.org/packages/curatedOvarianData/), [curatedBladderData](http://bioconductor.org/packages/curatedBladderData/), [curatedCRCData](http://bioconductor.org/packages/curatedOvarianData/), [doppelgangR](http://bioconductor.org/packages/doppelgangR/), [simulatorZ](http://bioconductor.org/packages/simulatorZ/)
+* Book chapter: Waldron L, Riester M: [Meta-Analysis in Gene Expression Studies.](http://waldronlab.org/wp-content/uploads/2016/03/Geneexpressionmeta-analyses.pdf) Methods Mol. Biol. 2016, 1418:161–176.
+* Longer workshop materials from [Bioc2014](http://bioconductor.org/help/course-materials/2014/BioC2014/)
+* Slides: https://www.github.com/waldronlab/Stockholm2016
+
+Conclusions
+========================================================
+- many alternatives for meta-analysis of genomics experiments have been proposed, none as flexible or well-understood as traditional approaches
+- simple pooling makes it difficult to assess heterogeneity arising from genomic or clinical data
+- metafor R package is highly recommendable and well-documented [Viechtbauer 2010](http://www.jstatsoft.org/v36/i03/paper)
+- For _multi-assay_ experiments, [BiocMultiAssay](http://bioconductor.org/packages/BiocMultiAssay) in bioc-devel
