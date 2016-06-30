@@ -1,0 +1,624 @@
+
+---
+title: "Statistical analysis for metagenomic data"
+author: "Levi Waldron and Curtis Huttenhower"
+date: "June 6-7, 2016"
+output:
+  slidy_presentation: default
+  ioslides_presentation:
+    css: styles.css
+    logo: logo.png
+---
+
+```{r setup, cache=FALSE, echo=FALSE}
+library(knitr)
+# global chunk options
+opts_chunk$set(cache=TRUE, autodep=TRUE)
+```
+
+## Outline
+
+- Properties of metagenomic data
+- Log-linear regression for count data
+- Lab 1: Exploratory analysis
+- Lab 2: Regression methods for metagenomic data
+
+## Learning Objectives
+
+- Qualitatively describe log-linear generalized linear models for count data
+- Use `phyloseq` Bioconductor package for exploratory data analysis
+- Use `DESeq2` Bioconductor package for regression on metagenomic data
+
+## Properties of processed metagenomic data
+
+- count data, minimum is zero
+    + MetaPhlAn2 data are not actually integer counts
+- non-normal
+    + highly skewed (over-dispersed)
+    + often has a lot of zero values
+- samples differ in extraction and amplification efficiency, read depth
+    + counts do not provide absolute microbial abundance
+    + we can only infer _relative_ abundance
+
+## Linear modeling for metagenomic data: Two main approaches (1)
+
+1. normalizing transformation, orinary linear modeling
+     - calculate relative abundance, dividing by the total number of counts for each sample (account for different sequencing depths)
+     - variance-stabilizing transformation of features, `arcsin(sqrt(x))`
+
+* *Advantages*
+    - simplicity: can directly use PCA, linear models, non-parametric tests
+
+* *Disadvantages*
+    - data may still not be very normally distributed
+    - regression coefficients for arcsin-sqrt transformed data not easily interpretable
+
+## Two main approaches (2)
+
+2. treat as count data, log-linear generalized linear model (GLM)
+     - log-linear systematic component
+     - typically negative binomially-distributed random component
+     - model can include an "offset" term to account for different sequencing depths
+
+* *Advantages*
+    - GLM framework provides great flexibility to deal with sequencing depth, over-dispersion
+    - coefficients are readily interpretable in "multiplicative" models
+    - `phyloseq` and `DESeq2` packages simplify the process
+
+* *Disadvantages*
+    - models are more complicated
+
+## Multiple Linear Regression Model (approach 1)
+
+Systematic part of model:
+
+$$
+E[y|x] = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + ... + \beta_p x_p
+$$
+
+- $E[y|x]$ is the expected value of $y$ given $x$
+- $y$ is the outcome, response, or dependent variable
+- $x$ is the vector of predictors / independent variables 
+- $x_p$ are the individual predictors or independent variables
+- $\beta_p$ are the regression coefficients
+
+## Multiple Linear Regression Model (cont'd)
+
+Random part of model:
+
+$y_i = E[y_i|x_i] + \epsilon_i$
+
+$y_i = \beta_0 + \beta_1 x_{1i} + \beta_2 x_{2i} + ... + \beta_p x_{pi} + \epsilon_i$
+
+- $x_{pi}$ is the value of predictor $x_j$ for observation $i$
+
+Assumption: $\epsilon_i \stackrel{iid}{\sim} N(0, \sigma_\epsilon^2)$
+
+* Normal distribution of $\epsilon_i$
+* Mean zero at every value of predictors
+* Constant variance at every value of predictors
+* Observations are independent
+
+## Generalized Linear Models
+
+* Linear regression is a special case of a broad family of models called “Generalized Linear Models” (GLM)
+* This unifying approach allows to fit a large set of models using maximum likelihood estimation methods (MLE) (Nelder & Wedderburn, 1972)
+* Can model many types of data directly using appropriate random distribution and "link" function
+    + Transformations of $Y$ not needed
+
+## Components of GLM
+
+* **Random component** specifies the conditional distribution for the response variable
+    + *e.g.* normal, Poisson, Negative Binomial...
+
+* **Systematic component** specifies linear function of predictors (linear predictor)
+* **Link** [denoted by g(.)] specifies the relationship between the expected value of the random component and the systematic component
+    + can be linear or nonlinear  
+
+## Linear Regression as GLM
+
+* **The model**: $y_i = E[y|x_i] + \epsilon_i = \beta_0 + \beta_1 x_{1i} + \beta_2 x_{2i} + ... + \beta_p x_{pi} + \epsilon_i$
+
+* **Random component** of $y_i$ is normally distributed:   $\epsilon_i \stackrel{iid}{\sim} N(0, \sigma_\epsilon^2)$
+
+* **Systematic component** (linear predictor): $\beta_0 + \beta_1 x_{1i} + \beta_2 x_{2i} + ... + \beta_p x_{pi}$
+
+* **Link function** here is the _identity link_: $g(E(y | x)) = E(y | x)$.  We are modeling the mean directly, no transformation.
+
+## Log-linear models
+
+Systematic component is:
+
+$$
+log(E[y|x_i]) = \beta_0 + \beta_1 x_{1i} + \beta_2 x_{2i} + ... + \beta_p x_{pi}
+$$
+
+Or equivalently:
+$$
+E[y|x_i] = exp \left( \beta_0 + \beta_1 x_{1i} + \beta_2 x_{2i} + ... + \beta_p x_{pi} \right)
+$$
+
+where $E[y|x_i]$ is the expected number of counts for a microbe in subject _i_
+
+* Systematic plus random components:
+
+$\epsilon_i$ is typically Poisson or Negative Binomal distributed.
+
+
+* Note: Modeling $log(E[y|x_i])$ is _not_ equivalent to modeling $E(log(y|x_i))$
+
+
+## Additive vs. Multiplicative models
+
+* Linear regression is an _additive_ model
+    + _e.g._ for two binary variables $\beta_1 = 1.5$, $\beta_2 = 1.5$.
+    + If $x_1=1$ and $x_2=1$, this adds 3.0 to $E(y|x)$
+
+* Log-linear models are _multiplicative_:
+    + If $x_1=1$ and $x_2=1$, this adds 3.0 to $log(E[y_i])$
+    + Expected count increases 20-fold: $exp(1.5+1.5)$ or $exp(1.5) * exp(1.5)$
+    + Coefficients are invariant to multiplicative scaling of the data
+
+This is a very important distinction!
+
+## Poisson model
+
+* In the Poisson distribution, the variance is equal to the mean.
+* _i.e._ if the mean number of a microbe across all samples is 4, then variance is also 4 and the standard deviation is 2.
+* The Poisson distribution fails when the variance exceeds the mean
+
+## Visualizing the Poisson Distribution
+
+* Poisson distribution has one parameter:
+    + mean $\lambda$ is greater than 0
+    + variance is also $\lambda$
+
+```{r, echo=FALSE}
+par(mar=c(4, 4, 0, 0))
+plot(x=0:10, y=dpois(0:10, lambda=1), 
+     type="b", lwd=2,
+     xlab="Counts (k)", ylab="Probability density")
+lines(x=0:10, y=dpois(0:10, lambda=2), 
+      type="b", lwd=2, lty=2, pch=2)
+lines(x=0:10, dpois(0:10, lambda=4), 
+      type="b", lwd=2, lty=3, pch=3)
+legend("topright", lwd=2, lty=1:3, pch=1:3,
+       legend=c(expression(paste(lambda, "=1")),
+                expression(paste(lambda, "=2")),
+                expression(paste(lambda, "=4"))))
+```
+
+## Negative binomial distribution
+
+* The binomial distribution is the number of successes in n trials:
+    + Roll a die ten times, how many times do you see a 6?
+* The negative binomial distribution is the number of successes it takes to observe r failures:
+    + How many times do you have to roll the die to see a 6 ten times?
+    + Note that the number of rolls is no longer fixed.
+    + In this example, p=5/6 and a 6 is a "failure"
+
+## Visualizing the Negative Binomial Distribution
+
+```{r, echo=FALSE}
+plot(x=0:40, y=dnbinom(0:40, size=10, prob=0.5), 
+     type="b", lwd=2, ylim=c(0, 0.2),
+     xlab="Counts (k)", ylab="Probability density")
+lines(x=0:40, y=dnbinom(0:40, size=20, prob=0.5), 
+      type="b", lwd=2, lty=2, pch=2)
+lines(x=0:40, y=dnbinom(0:40, size=10, prob=0.3),
+      type="b", lwd=2, lty=3, pch=3)
+legend("topright", lwd=2, lty=1:3, pch=1:3,
+       legend=c("n=10, p=0.5", "n=20, p=0.5", "n=10, p=0.3"))
+```
+
+## Compare Poisson vs. Negative Binomial
+
+Negative Binomial Distribution has two parameters: # of trials n, and probability of success p
+
+```{r, echo=FALSE}
+plot(x=0:40, y=dnbinom(0:40, size=10, prob=0.5), 
+     type="b", lwd=2, ylim=c(0, 0.15),
+     xlab="Counts (k)", ylab="Probability density")
+lines(x=0:40, y=dnbinom(0:40, size=20, prob=0.5), 
+      type="b", lwd=2, lty=2, pch=2)
+lines(x=0:40, y=dnbinom(0:40, size=10, prob=0.3),
+      type="b", lwd=2, lty=3, pch=3)
+lines(x=0:40, y=dpois(0:40, lambda=9), col="red")
+lines(x=0:40, y=dpois(0:40, lambda=20), col="red")
+legend("topright", lwd=c(2,2,2,1), lty=c(1:3,1), pch=c(1:3,-1), col=c(rep("black", 3), "red"),
+       legend=c("n=10, p=0.5", "n=20, p=0.5", "n=10, p=0.3", "Poisson"))
+```
+
+## Demystifying error models
+
+* In regression we model observations as coming from a **random** distribution with **fixed** parameters:
+    + linear regression: *normal* distribution, with *mean* and *standard deviation*
+    + log-linear models: *Poisson* distribution with *mean* $\lambda$, or *Negative Binomial* distribution with parameters $n$ and $p$
+
+If there is evidence that the fixed parameters differ between two groups of interest, we say the results are *statistically significant*.
+
+## Zero-inflated models
+
+* Two-step model:
+    1. logistic model to determine whether count is zero or Poisson/NB
+    2. Poisson or NB regression distribution for $y_i$ not set to zero by step *1.*
+
+* Not currently supported by DESeq2, edgeR, limma (as far as I know)
+* Can perform one row at a time using `pcsl::zeroinfl()`
+    + *Warning:* this function's default is to include covariates in both models, better to change logistic model to intercept-only (`count ~ X|1`)
+
+## Poisson Distribution with Zero Inflation
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(gamlss)
+##par(cex=2)  #increase size of type and axes
+plot(x=0:10, y=dpois(0:10, lambda=2), 
+     type="b", lwd=2, ylim=c(0, 0.5),
+     xlab="Counts (k)", ylab="Probability density")
+lines(x=0:10, y=dZIP(0:10, mu=2, sigma=0.2),
+      type="b", lwd=2, lty=2, pch=2)
+lines(x=0:10, y=dZIP(0:10, mu=2, sigma=0.4),
+      type="b", lwd=2, lty=3, pch=3)
+legend("topright", lwd=2, lty=1:3, pch=1:3,
+       legend=c(expression(paste(lambda, "=2")),
+                expression(paste("ZIP: ", lambda, "=2, ", "p=0.2")),
+                expression(paste("ZIP: ", lambda, "=2, ", "p=0.4"))))
+```
+
+
+# Lab 1: exploration
+
+## Example: Candela Africa dataset
+
+Rampelli S *et al.*: [Metagenome Sequencing of the Hadza Hunter-Gatherer Gut Microbiota](http://www.ncbi.nlm.nih.gov/pubmed/25981789). Curr. Biol. 2015, 25:1682–1693. 
+
+```{r}
+indat = read.delim("data/Candela_Africa_stool.txt")
+inmetadat = read.delim("data/Candela_Africa_metadat.txt")
+library(phyloseq)
+source("https://raw.githubusercontent.com/waldronlab/EPIC2016/master/metaphlanToPhyloseq.R")
+Candela = metaphlanToPhyloseq(indat, inmetadat, simplenames = TRUE, 
+                              roundtointeger = FALSE)
+```
+
+```{r, eval=FALSE}
+summary(otu_table(Candela))
+summary(sample_data(Candela))
+```
+
+## Initial exploration
+
+`phyloseq` help vignettes [here](https://bioconductor.org/packages/release/bioc/html/phyloseq.html).
+
+```{r}
+Candela
+Candela = prune_taxa(taxa_sums(Candela) > 0, Candela)
+Candela
+```
+
+## Subsetting and pruning
+```{r}
+rank_names(Candela)
+subset_taxa(Candela, !is.na(Strain))
+(Candela.sp_strain = subset_taxa(Candela, !is.na(Species)))
+
+taxonomy.level = apply(tax_table(Candela), 1, function(x) sum(!is.na(x)))
+Candela.phy = prune_taxa(taxonomy.level==2, Candela)
+taxa_names(Candela.phy)
+
+```
+
+## Advanced pruning
+
+Keep taxa only if they are in the most abundant 10% of taxa in at least two samples:
+```{r}
+f1<- filterfun_sample(topp(0.1))
+pru <- genefilter_sample(Candela, f1, A=2)
+summary(pru)
+subset_taxa(Candela, pru)
+```
+
+More help [here](https://bioconductor.org/packages/release/bioc/vignettes/phyloseq/inst/doc/phyloseq-basics.html#trimming-subsetting-filtering-phyloseq-data).
+
+## Heatmap
+
+```{r}
+plot_heatmap(Candela.sp_strain, method="PCoA", distance="bray")
+```
+
+## Barplot
+
+```{r}
+par(mar = c(18, 4, 0, 0) + 0.1) # make more room on bottom margin
+barplot(sort(taxa_sums(Candela.sp_strain), TRUE)[1:30]/nsamples(Candela.sp_strain), las=2)
+```
+
+## Distances in high dimensions
+
+- High-dimensional data are complex and impossible to visualize in raw form
+    - Thousands of dimensions, we can only visualize 2-3
+- Distances can simplify thousands of dimensions
+- Any clustering or classification of samples and/or genes involves
+combining or identifying objects that are close or similar.
+- Distances or similarities are mathematical representations of what
+we mean by close or similar.
+- The choice of distance is a subject matter-specific, qualitative decision
+
+## Euclidian distance (metric)
+
+- Remember grade school:
+```{r, echo=FALSE, fig.height=3.5}
+plot(c(0,1,1),c(0,0,1),pch=16,cex=2,xaxt="n",yaxt="n",xlab="",ylab="",bty="n",xlim=c(-0.25,1.25),ylim=c(-0.25,1.25))
+lines(c(0,1,1,0),c(0,0,1,0))
+text(0,.2,expression(paste('(A'[x]*',A'[y]*')')),cex=1.5)
+text(1,1.2,expression(paste('(B'[x]*',B'[y]*')')),cex=1.5)
+text(-0.1,0,"A",cex=2)
+text(1.1,1,"B",cex=2)
+```
+<center>
+Euclidean d = $\sqrt{ (A_x-B_x)^2 + (A_y-B_y)^2}$.
+</center>
+
+## Alpha / Beta diversity measures
+
+From Morgan and Huttenhower [Human Microbiome Analysis](http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1002808)
+
+<img src="journal.pcbi.1002808.g002.png" alt="SVD" align="middle" style="width: 1000px;">
+
+These examples describe the A) sequence counts and B) relative abundances of six taxa detected in three samples. C) A collector's curve using a richness estimator approximates the relationship between the number of sequences drawn from each sample and the number of taxa expected to be present based on detected abundances. D) Alpha diversity captures both the organismal richness of a sample and the evenness of the organisms' abundance distribution. E) Beta diversity represents the similarity (or difference) in organismal composition between samples. 
+
+* Shannon Index alpha diversity: $H' = -\sum_{i=1}^{S} \left( p_i ln(p_i) \right )$
+* Beta diversity: $\beta = (n_1 - c) + (n_2 - c)$
+
+## Alpha diversity estimates
+
+* Look at `?phyloseq::estimate_richness`
+* Supported measures of alpha diversity are:
+    - "Observed", "Chao1", "ACE", "Shannon", "Simpson", "InvSimpson", "Fisher"
+    - more information from `vegan` package
+
+Note, you can ignore warning about singletons:
+```{r, warning=FALSE}
+Candela.int = Candela
+otu_table(Candela.int) = round(otu_table(Candela)*1e4)
+alpha_meas = c("Shannon", "Simpson", "InvSimpson")
+(p <- plot_richness(Candela.int, "gender", "camp", measures=alpha_meas))
+```
+
+## Comparison of alpha diversity estimates
+
+```{r}
+alphas = estimate_richness(Candela.int, measures=alpha_meas)
+pairs(alphas)
+```
+
+## Beta diversity / dissimilarity 
+
+E.g. Bray-Curtis dissimilarity between all pairs of samples:
+
+```{r}
+plot(hclust(phyloseq::distance(Candela, method="bray")), 
+     main="Bray-Curtis Dissimilarity", xlab="", sub = "")
+```
+
+* Dozens of distance measures are available
+    - see `?phyloseq::distance` and `?phyloseq::distanceMethodList`
+
+## Ordination
+
+```{r}
+ord = ordinate(Candela, method="PCoA", distance="bray")
+plot_ordination(Candela, ord, color="camp", shape="camp") + 
+  ggplot2::ggtitle("Bray-Curtis Principal Coordinates Analysis")
+```
+
+* Available methods are "DCA", "CCA", "RDA", "CAP", "DPCoA", "NMDS", "MDS", "PCoA"
+* PCoA approximately preserves distances in a two-dimensional projection
+
+Not much "horseshoe" effect here.
+
+## Ordination (cont'd)
+
+```{r}
+plot_scree(ord) + ggplot2::ggtitle("Screeplot")
+```
+
+# Lab 2: regression
+
+## Sample selection
+
+Not necessary, not evaluated:
+
+```{r, eval=FALSE}
+Candela.pruned = subset_samples(Candela, country %in% c("italy", "tanzania"))
+Candela.pruned = prune_samples(sample_sums(Candela.pruned) > 10, Candela.pruned)
+Candela.pruned
+```
+
+
+* Automatic independent filtering: `DESeq2` automatically optimizes "non-specific" filtering / pruning of low-abundance features
+* filtering based on mean abundance
+    - optimizes the number of features meeting False Discovery Rate
+
+## Conversion to DESeq2
+
+More help on converting to DESeq2 from various formats [here](https://bioconductor.org/packages/release/bioc/vignettes/phyloseq/inst/doc/phyloseq-mixture-models.html).
+
+```{r, echo=FALSE}
+suppressPackageStartupMessages(library("DESeq2"))
+```
+
+```{r}
+dds.data = phyloseq_to_deseq2(Candela, ~country)
+```
+
+**Note**: better to use normalized count data than relative abundance
+
+## Negative Binomial log-linear model with DESeq2
+
+Excellent DESeq2 manual [here](https://bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.pdf) or `vignettes(package="DESeq2")`
+
+```{r, results="hide", message=FALSE}
+dds = DESeq(dds.data)
+res = results(dds)
+res = res[order(res$padj, na.last=NA), ]
+alpha = 0.01
+sigtab = res[(res$padj < alpha), ]
+sigtab = cbind(as(sigtab, "data.frame"), 
+               as(tax_table(Candela)[rownames(sigtab), ], "matrix"))
+```
+
+```{r}
+head(sigtab)
+```
+
+
+## Bayesian estimation of dispersion
+
+```{r, message=FALSE}
+dds2 <- estimateSizeFactors(dds)
+dds2 <- estimateDispersions(dds2)
+plotDispEsts(dds2)
+```
+
+## Plot results
+
+```{r}
+library("ggplot2")
+theme_set(theme_bw())
+sigtabgen = subset(sigtab, !is.na(Family))
+# Phylum order
+x = tapply(sigtabgen$log2FoldChange, sigtabgen$Phylum, function(x) max(x))
+x = sort(x, TRUE)
+sigtabgen$Phylum = factor(as.character(sigtabgen$Phylum), levels=names(x))
+# Family order
+x = tapply(sigtabgen$log2FoldChange, sigtabgen$Family, function(x) max(x))
+x = sort(x, TRUE)
+sigtabgen$Family = factor(as.character(sigtabgen$Family), levels=names(x))
+ggplot(sigtabgen, aes(y=Family, x=log2FoldChange, color=Phylum)) + 
+  geom_vline(xintercept = 0.0, color = "gray", size = 0.5) +
+  geom_point(size=6) + 
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5))
+```
+
+## Correcting for gender as a potential confounder
+
+```{r}
+table(sample_data(Candela)$country, sample_data(Candela)$gender)
+```
+
+```{r, results="hide", message=FALSE}
+dds.data2 = phyloseq_to_deseq2(Candela, ~country + gender)
+dds2 = DESeq(dds.data)
+```
+
+```{r}
+resultsNames(dds2)
+```
+
+## Correcting for gender as a potential confounder
+
+```{r}
+## italy = numerator, tanzania = denominator
+res2 = results(dds, contrast=c("country", "italy", "tanzania"))
+res2 = res2[order(res$padj, na.last=NA), ]
+alpha = 0.01
+sigtab2 = res2[which(res2$padj < alpha), ]
+sigtab2 = cbind(as(sigtab2, "data.frame"), as(tax_table(Candela)[rownames(sigtab2), ], "matrix"))
+head(sigtab2)
+```
+
+* *Note* can add interaction terms
+
+## MA plots
+
+Fold-change vs. mean:
+```{r}
+plotMA(res, main="Difference vs. Average")
+legend("bottomright", legend="differentially abundant", lty=-1, pch=1, col="red", bty='n')
+```
+
+## Plot individual counts
+```{r}
+par(mfrow=c(1,2))
+plotCounts(dds2, gene="p__Actinobacteria", intgroup="country")
+plotCounts(dds2, gene="p__Actinobacteria", intgroup="gender")
+```
+
+## Heatmap of differentially abundant taxa
+
+```{r}
+select <- rownames(sigtab2)
+nt <- normTransform(dds2) # defaults to log2(x+1)
+log2.norm.counts <- assay(nt)[select, ]
+df <- as.data.frame(colData(dds2)[,c("country", "gender")])
+```
+
+```{r}
+pheatmap::pheatmap(log2.norm.counts, annotation_col=df, main="log2(counts + 1)")
+```
+
+## Regression on ordination vectors and alpha diversity
+
+Prepare a `data.frame`:
+```{r}
+df = data.frame(country=sample_data(Candela)$country,
+                Shannon=alphas$Shannon)
+df = cbind(df, ord$vectors[, 1:5])
+```
+
+```{r}
+par(mfrow=c(3,2))
+for (i in 2:7){
+  boxplot(df[, i] ~ df$country, main=colnames(df)[i])
+}
+```
+
+## Regression on ordination vectors and alpha diversity (cont'd)
+
+Multivariate regression:
+
+```{r}
+fit = glm(country ~ ., data=df, family=binomial("logit"))
+```
+
+Univariate regression:
+```{r}
+res <- sapply(2:ncol(df), function(i){
+  fit = glm(df$country ~ df[, i], family=binomial("logit"))
+  summary(fit)$coefficients[2, ]
+})
+colnames(res) = colnames(df)[2:ncol(df)]
+res
+write.csv(res, file="univariate_shannonPCoA.csv")
+```
+
+## Regression in R: model formulae
+
+* regression functions in R such as `lm()`, `glm()`, and high-level packages like `DESeq2` use a "model formula" interface.
+* The basic format is:
+
+> response variable ~ explanatory variables
+
+* The tilde means "is modeled by" or "is modeled as a function of." 
+
+[Model formulae tutorial](http://ww2.coastal.edu/kingw/statistics/R-tutorials/formulae.html)
+
+Can use *Model matrices* for more control of the model (`?model.matrix`)
+
+## Note on read depths and offset
+
+* *Note:* better to use metaphlan2 option:
+
+    - `-t clade_profiles`
+
+* to generate normalized counts instead of relative abundance
+* then differential read depth accounted for by an _offset term_ in log-linear model
+
+## Links
+
+- A built [html][] version of this lecture is available.
+- The [source][] R Markdown is also available from Github.
+
+[html]: http://rpubs.com/lwaldron/EPIC2016_Waldron
+[source]: https://github.com/waldronlab/EPIC2016
