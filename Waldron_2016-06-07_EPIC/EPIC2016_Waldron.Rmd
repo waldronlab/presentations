@@ -621,4 +621,4 @@ Can use *Model matrices* for more control of the model (`?model.matrix`)
 - The [source][] R Markdown is also available from Github.
 
 [html]: http://rpubs.com/lwaldron/EPIC2016_Waldron
-[source]: https://github.com/waldronlab/EPIC2016
+[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2016-06-07_EPIC
