@@ -16,7 +16,7 @@ output:
 - The [source][] R Markdown is also available from Github.
 
 [html]: http://rpubs.com/lwaldron/CSAMA2016_IntroLinearModels
-[source]: https://github.com/waldronlab/presentations/Waldron_2016-07-11_CSAMA_linearmodels
+[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2016-07-11_CSAMA_linearmodels
 
 ## Outline for Introduction to Linear Models
 
