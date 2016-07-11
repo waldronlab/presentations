@@ -1,6 +1,6 @@
 
 ---
-title: 'Introduction to Linear Models'
+title: "Introduction to Linear Models"
 author: "Levi Waldron"
 date: "July 11, 2016"
 output:
@@ -9,14 +9,6 @@ output:
     css: styles.css
     logo: logo.png
 ---
-
-## Links
-
-- A built [html][] version of this lecture is available.
-- The [source][] R Markdown is also available from Github.
-
-[html]: http://rpubs.com/lwaldron/CSAMA2016_IntroLinearModels
-[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2016-07-11_CSAMA_linearmodels
 
 ## Outline for Introduction to Linear Models
 
@@ -27,6 +19,7 @@ Based on Love and Irizarry, [Data Analysis for the Life Sciences](https://leanpu
 * Model formulae
 * Interactions
 * Design matrix
+* Analysis of Variance
 
 # Introduction to Linear Models
 
@@ -67,31 +60,6 @@ table(spider$leg,spider$type)
 summary(spider)
 ```
 
-## Example: friction of spider legs
-
-```{r, fig.align='center'}
-boxplot(spider$friction ~ spider$type * spider$leg,
-        col=c("grey90","grey40"), las=2,
-        main="Friction coefficients of different leg pairs")
-```
-
-## Example: friction of spider legs
-
-<div class="columns-2">
-
-```{r, fig.align='center', echo=FALSE}
-boxplot(spider$friction ~ spider$type * spider$leg,
-        col=c("grey90","grey40"), las=2,
-        main="Friction coefficients of \n different leg pairs")
-```
-
-Notes:
-
-- Pulling friction is higher
-- Pulling (but not pushing) friction increases for further back legs (L1 -> 4)
-- Variance isn't constant
-
-</div>
 
 ## What are linear models?
 
@@ -162,7 +130,7 @@ Assumptions of linear models: $\epsilon_i \stackrel{iid}{\sim} N(0, \sigma_\epsi
     * `L4`={1 if $4^{th}$ leg pair, 0 otherwise}.
 
 - R re-codes factors to dummy variables automatically. 
-- Dummy coding depends on whether factor is ordered or not.
+- Note that factors can be *ordered* or *unordered*
 
 # Model formulae
 
@@ -211,7 +179,7 @@ print(fit.table, type="html")
     * Coefficients are t-distributed when assumptions are correct
     * Variance in the estimates of each coefficient can be calculated
 
-## Interpretation of spider leg type coefficients
+## Interpretation of coefficients
 
 ```{r spider_main_coef, fig.cap="Diagram of the estimated coefficients in the linear model. The green arrow indicates the Intercept term, which goes from zero to the mean of the reference group (here the 'pull' samples). The orange arrow indicates the difference between the push group and the pull group, which is negative in this example. The circles show the individual samples, jittered horizontally to avoid overplotting.",echo=FALSE}
 set.seed(1) #same jitter in stripchart
@@ -230,7 +198,7 @@ abline(h=coefs[1]+coefs[2],col=cols[2])
 legend("right",names(coefs),fill=cols,cex=.75,bg="white")
 ```
 
-## regression on spider leg **position**
+## Regression on spider leg **position**
 
 Remember there are positions 1-4
 ```{r}
@@ -270,16 +238,16 @@ print(fit.table, type="html")
 
 ## Interaction (effect modification)
 
+![Interaction between coffee and time of day on performance](coffee_interaction.jpg)
+  
+Image credit: http://personal.stevens.edu/~ysakamot/
+
+## Interaction (effect modification)
+
 Interaction is modeled as the product of two covariates:
 $$
 E[y|x] = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2
 $$
-
-## Interaction (effect modification)
-
-![Interaction between coffee and time of day on performance](coffee_interaction.jpg)
-  
-Image credit: http://personal.stevens.edu/~ysakamot/
 
 ## Model formulae (cont'd)
 
@@ -322,10 +290,10 @@ Matrix notation for the multiple linear regression model:
 $$
 \,
 \begin{pmatrix}
-Y_1\\
-Y_2\\
+y_1\\
+y_2\\
 \vdots\\
-Y_N
+y_N
 \end{pmatrix} = 
 \begin{pmatrix}
 1&x_1\\
@@ -419,15 +387,22 @@ print(fit.table, type="html")
 
 ## Design matrix to contrast what we want
 
-The desired contrast is:
+What if we want to contrast...
 
-`typepush:legL3 − typepush:legL2`
+`typepush:legL3 - typepush:legL2`
 
 There are many ways to construct this design, one is with `library(multcomp)`: 
 ```{r}
 names(coef(fitX))
 C <- matrix(c(0,0,0,0,0,-1,1,0), 1) 
 L3vsL2interaction <- multcomp::glht(fitX, linfct=C) 
+```
+
+## Design matrix to contrast what we want
+
+Is there a difference in pushing friction for L3 vs L2?
+
+```{r}
 summary(L3vsL2interaction)
 ```
 
@@ -444,10 +419,10 @@ summary(L3vsL2interaction)
 
 ## Why Analysis of Variance?
 
-* Analysis of Variance allows inference on the inclusion of a categorical variable
+* Analysis of Variance allows inference on the inclusion of a categorical or continuous variable
     * not just on re-coded "dummy" variables (e.g. for each spider leg pair)
 
-```{r, fig.height=5, fig.align='center'}
+```{r, fig.height=5, fig.align='center', echo=FALSE}
 boxplot(spider$friction ~ spider$type * spider$leg,
         col=c("grey90","grey40"), las=2,
         main="Friction coefficients of different leg pairs")
@@ -483,17 +458,30 @@ arrows(x0=Fcrit, x1=Fcrit+1, y0=0.4, y1=0.4)
 text(x=Fcrit, y=0.3, label="Probability = 0.05", pos=4)
 ```
 
-- F-test assumes normally distributed residuals and homoscedasticity
-    - but is *robust* and *conservative* to violations
-
 ## Summary
 
 - Linear models are the basis for identifying differential expression / differential abundance
-    - anything with at least one continuous $X$ or $Y$
+    - continuous $Y$; any kind of $X$ variables
 - **Assumptions**: 
-    1. normal, homoscadistic errors,
+    1. normal, homoscedastic errors,
     2. a linear relationship, and
     3. independent observations.
-- Extends to binary $Y$ (logistic regression), count $Y$ (log-linear regression with e.g. Poisson or Negative Binomial link functions) through **Generalized Linear Models**
+
+- Note that **t** and **F** tests are *robust* and *conservative* to violations of 1 and 2
+    - extremely so for $n>30$
+
+## Summary (cont'd)
+
 - Know the model formula interface, but
     - use model matrices to directly fit coefficients that you want to interpret
+- **Generalized Linear Models** extend these methods to:
+    - binary $Y$ (logistic regression)
+    - count $Y$ (log-linear regression with e.g. Poisson or Negative Binomial link functions) 
+
+## Links
+
+- A built [html][] version of this lecture is available.
+- The [source][] R Markdown is also available from Github.
+
+[html]: http://rpubs.com/lwaldron/CSAMA2016_IntroLinearModels
+[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2016-07-11_CSAMA_linearmodels
