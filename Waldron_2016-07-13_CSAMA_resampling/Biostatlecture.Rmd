@@ -1,0 +1,265 @@
+---
+title: "Resampling Methods Part (2)"
+author: "Ragheed Al-Dulaimi, MD, MPH"
+date: "December 17, 2014"
+output: beamer_presentation
+theme: "AnnArbor"
+highlight: "Zenburn"
+
+---
+
+## Resampling
+* Population → Sample → Inference
+* Resampling:
+    - Resample from the original sample
+    - No information on population characteristics or distribution
+    - No assumption on distribution of the data
+* Estimation (e.g. bias), hypothesis testing, model assessment
+
+Type of Sample | Without Replacement         | With Replacement
+---------------|-----------------------------| -----------------
+ Full sample   | Permutation Test            | Bootstrap
+ Subsample     | Cross-Validation, Jackknife | 
+
+
+## Resampling Methods 
+
+**Cross-Validation**
+ 
+  - **_Procedure:_**   Data is randomly divided into subsets. Results validated across sub-samples.  
+  - **_Application:_**  Model Validation
+                   
+
+**Jackknife**     
+
+  - **_Procedure:_**   Samples consist of full data set, with one observation left out (n-1).  
+  - **_Application:_**  Standard deviation, confidence interval, bias
+
+ 
+ 
+ 
+## Resampling Methods -cont
+
+**Bootstrap**
+
+  - **_Procedure:_**   Samples drawn at random with replacement.  
+  - **_Application:_**  Standard deviation, confidence interval, bias , hypothesis testing
+
+ 
+
+
+**Permutation Test**  
+ 
+  - **_Procedure:_**   Samples drawn at random without replacement.  
+  - **_Application:_**  Hypothesis testing
+
+
+## Permutation Test
+- The Permutation test is a technique that bases inference on “experiments” within the observed dataset.
+ i.e. Permutation test create a null distribution by random permutation of the data
+- In classical hypothesis testing, we start with assumptions about the underlying distribution and then derive the sampling distribution of the test statistic under H0.
+- In Permutation testing, the initial assumptions are not needed, and the sampling distribution of the test statistic under H0 is computed by using permutations of the data.
+
+
+## Permutation Test Example (1):
+- In an RCT, participants are randomly assigned to a treatment (Tx) or control (C) group.
+- Under H0, the outcome does not depend on whether a participant takes the treatment (Tx) or the control (C).
+- Under H1, the outcome tends to different, say larger for particiapnt in  Tx group.
+- A test statistic T measures the difference in observed outcomes for the two groups. T may be the difference in the two group means (or medians), denoted as t for the observed data.
+
+## Permutation Test Example (1) 
+- Under H0, the individual labels of Tx and C are unimportant, since they have no impact on the outcome. 
+- Since they are unimportant, the label can be randomly shuffled among the particiants without changing the joint null distribution of the data.
+- Shuffling the data creates a “new” dataset. It has the same particiants, but with the group labels changed so as to appear as there were different group assignments.
+
+## Permutation Test Example (1)
+- Consider data from two groups:
+  Group 1: 20,24,30 
+  Group 2: 10,14,18
+
+- How to test if the means of the two groups are equal?
+- T-test may not be appropriate to use, given the small sample size.
+- permutation is equivalent to wilxocoon test
+
+## Permutation Test Example (1)
+
+- If the group means are truly equal, then shifting the group labels will not have a big impact the sum of the two groups (or mean with equal sample sizes). 
+- Some group sums will be larger than in the original data set and some will be smaller.
+- There are 6 observations.
+- There are 6!=720 permutations considering all 6 positions as unique. 
+Of the 720 permutations, there are 20 unique combinations (equal sample sizes).
+Compute mean (or sum) for each of these.
+- If all permutations were enumerated. Thus, this was an exact permutation test.
+- When dataset is too large to enumerate all permutations, a large number of random permutations are selected. 
+
+## Permutation Test Example(2): 
+
+- It says, "Okay, these are the n result (20 score in the sleep data) we got, and the way they are divided up between the two groups is one possible permutation of them. There are, in fact... 
+
+```{r, echo=FALSE}
+choose(20,10)
+```
+...possible permutations (technically combinations) of these data into 2 groups of 10, and each has equal probability.
+
+- Most of these permutations would give no or little difference between the group means, but a few of them would give large differences. 
+- How extreme is the obtained case?
+
+## Principles of permutation test
+- In other words, the logic is similar to t-test. If the obtained case is in the most extreme 5% of possible results, then we reject the null hypothesis. 
+- Permutation test does not make any assumption at all about parent distributions. [no assupmption of normality]. 
+- Furthermore, a permutation test is generally more powerful than a "traditional" nonparametric test.
+- The disadvantage of a permutation test is the number of permutations that must be generated.
+
+
+## Steps of permutation test:
+  1. Calculate T and p value observed sample 
+  II. Permutation part
+       (i) Sample without replacement n (20) observations, assign the first half (10) observations to the  treatment group and the remaining observations to the control group
+       (ii) Compute the T value
+       (iii) Store the T value in a vector/matrix 
+       (iv)  Repeat steps(1- 3) [ R times] 
+  III. Calculate empirical p value
+- How often T(permutation) > observed. T value?
+
+
+## Example from (sleep) data:
+ - Sleep data show the effect of two soporific drugs (increase in hours of sleep compared to control) 
+ on 10 patients.
+```{r, echo=FALSE}
+ data(sleep)
+summary(sleep)
+```
+
+## Example from (sleep) data: -cont
+
+```{r, echo=FALSE}
+head(sleep)
+```
+
+
+## 2 groups:  10 observation each
+On hyoscine drug
+```{r, echo=FALSE}
+summary(sleep$extra[sleep$group==1])
+ ```
+Control
+```{r, echo=FALSE}
+summary(sleep$extra[sleep$group==2])
+```
+Observed value of T test:
+```{r, echo=FALSE}
+studTest.obs <- t.test(extra ~ group, data=sleep)
+list(T_value= studTest.obs$statistic, P_Value=studTest.obs$p.value)
+```
+
+## Permutation test for sleep data
+```{r}
+R = 999
+scores = sleep$extra
+t.values <- numeric(R)
+    for (i in 1:R) {
+    index = sample(1:20, size=10, replace=F)
+    group1 = scores[index]
+    group2 = scores[-index]
+    studTest<- t.test(group1,group2)
+    t.values[i] = studTest$statistic
+    }
+```
+
+
+## P-value for permutation test:
+-we compare those simulated t-values to the one we obtained above from  the actual t-test.
+tells us that a little more than 9% of the sims gave us a result equal or more extreme than the obtained case. 
+```{r}
+permut.tvalues = abs(t.values)             
+# for a two-tailed test
+ mean(permut.tvalues<=1.8608) 
+```
+- The p.value from permutation test is pretty close to the p-value from the actual t-may be due to  nonnormality [t-test was a bit too generous here].
+
+
+
+## Monte Carlo:
+ - What is a Monte Carlo study?
+ - How to conduct Monte Carlo simulation? 
+ - What are some situations where Monte Carlo simulation is needed?
+
+## What is a Monte Carlo study?
+According to Webster’s dictionary, Monte Carlo relates to or involves
+"the use of random sampling techniques and often the use of computer simulation to obtain
+approximate solutions to mathematical or physical problems especially in terms of a range of values
+each of which has a calculated probability of being the solution"
+
+
+## What is a Monte Carlo study? 
+
+- When the "resampling" is done from a known theoretical distribution, the correct term is "Monte Carlo" simulation. 
+  - Monte Carlo simulations are estimations, not analytic answers
+   i.e. It uses random number generation, rather than analytic calculations
+  - Accuracy of estimate increases with larger n
+  - It is a tool for combining distributions, and thereby propagating more than just summary statistics
+   
+
+## How to conduct Monte Carlo study? 
+
+-  **Steps of Monte Carlo  simulations:**
+     1. Sample randomly from the simple distributions in each step
+     2.  Estimate the complex function for the sample
+     3.  repeat this a large number of times to get the estimate
+ 
+ 
+## Random number generator 
+![SAS and R](SASfunc.png)
+
+## Random number generator -R Function-
+![R function](Rfunc2.png)
+
+
+
+## Example using Student's sleep data... 
+ - Mean
+```{r, echo=FALSE}
+ tapply(sleep$extra, sleep$group, mean )
+```
+- Standard deviation
+```{r, echo=FALSE}
+tapply(sleep$extra, sleep$group, sd)
+```
+- n for each group
+```{r, echo=FALSE}
+tapply(sleep$extra, sleep$group, length)
+```
+
+## Power Calculation
+
+```{r}
+power.tt<- power.t.test(n=10, delta=(2.33-.75), 
+                        sd=1.9, sig.level=.05,
+          type="two.sample", alternative="two.sided")
+```
+```{r, echo=FALSE}
+list(power=round(power.tt$power,2))
+```
+- we have a 42% chance of finding a two-tailed significant difference between 2 samples of 10 chosen from normal populations with a common SD of 1.9 (the pooled sd of the 2 samples) but with a true difference in means of 1.58. 
+
+## To do the same calculation by simulation,:
+- Use the rnorm( ) function to draw the samples,
+- the t.test( ) function to get a p-value,
+- then we will simply look to see what % of p-values are less than alpha=.05 after running this procedure a large number of times. 
+
+## R script
+```{r}
+R = 999
+alpha = numeric(R)
+ for (i in 1:R) {
+group1 = rnorm(10, mean=.75, sd=1.9)
+group2 = rnorm(10, mean=2.33, sd=1.9)
+alpha[i] = t.test(group1,group2)$p.value
+}
+```
+
+```{r}
+mean(alpha<.05)
+```
+
+## Other Uses of Monte Carlo simulation:
