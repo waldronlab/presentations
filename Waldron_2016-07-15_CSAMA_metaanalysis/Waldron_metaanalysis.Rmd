@@ -284,4 +284,4 @@ taxabund
 
 - many alternatives for meta-analysis of genomics experiments have been proposed, none as flexible or well-understood as traditional approaches
 - metafor R package is highly recommendable and well-documented ([Viechtbauer 2010](http://www.jstatsoft.org/v36/i03/paper))
-- simple pooling makes it difficult to assess heterogeneity arising from genomic or clinical data
+- data availability and curation are critical
