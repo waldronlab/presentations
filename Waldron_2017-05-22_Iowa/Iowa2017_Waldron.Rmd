@@ -463,7 +463,7 @@ Pasolli, Schiffer *et al.*, bioRxiv 103085
 ## Links
 
 - A built [html][] version of this lecture is available.
-- The [source][] R Markdown is also available from Github.
+- The [source][] R Markdown is available from Github.
 
 [html]: http://rpubs.com/lwaldron/Iowa2017microbiome
-[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2017-05-21_Iowa
+[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2017-05-22_Iowa
