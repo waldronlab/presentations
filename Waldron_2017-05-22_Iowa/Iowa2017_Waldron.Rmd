@@ -1,0 +1,469 @@
+
+---
+title: "An Introduction to Analysis of Microbiome Data"
+author: "Levi Waldron"
+date: "May 22, 2017"
+output:
+  slidy_presentation: default
+  ioslides_presentation:
+    css: styles.css
+    logo: logo.png
+---
+
+```{r setup, cache=FALSE, echo=FALSE}
+library(knitr)
+# global chunk options
+opts_chunk$set(cache=TRUE, autodep=TRUE)
+```
+
+## Outline
+
+- Types and properties of microbiome data
+- Exploratory data analysis
+- Log-linear regression for count data
+
+## Generating microbiome data
+
+<img src="journal.pcbi.1002808.g001.png" alt="16S-WMS" align="middle" style="width: 600px;">
+
+From Morgan and Huttenhower, Human Microbiome Analysis, https://doi.org/10.1371/journal.pcbi.1002808
+
+
+## 16S rRNA profiling
+
+**Pros:**
+
+- cheap (multiplex hundreds of samples)
+- relatively small data
+- genus-level taxonomy and inferred metabolic function for bacteria and archaea
+
+**Cons:**
+
+- taxonomy reliable only to genus level
+- indirect inference of metabolic function 
+- use of a single marker gene is susceptible to biases
+
+Bioinformatics pipeline of choice: **QIIME**
+
+## Whole metagenome shotgun sequencing (WMS)
+
+**Pros:**
+
+- taxonomy to species and even strain
+- viruses and fungi
+- gene variants, e.g. ABX resistance
+- use of many marker genes is less susceptible to biases
+- more direct + precise functional inference
+
+**Cons:**
+
+- expensive – probably no multiplexing
+- contamination from human DNA
+- gigabytes of sequence data per sample (before processing)
+
+Bioinformatics pipeline of choice: **Biobakery** (MetaPhlan2, HUMAnN2)
+
+## Properties of processed microbiome data
+
+- taxonomic data for kingdom, phylum or division, class, order, family, genus, (species)
+    + hundreds of rows
+- inferred metabolic function
+    + hundreds of rows
+- calculated alpha diversity
+
+## Properties of processed microbiome data
+
+- count data, minimum is zero
+    + MetaPhlAn2 data are not actually integer counts
+- non-normal
+    + highly skewed (over-dispersed)
+    + often has a lot of zero values
+- samples differ in extraction and amplification efficiency, read depth
+    + counts do not provide absolute microbial abundance
+    + we can only infer _relative_ abundance
+
+## Example: Rampelli Africa dataset
+
+Rampelli S *et al.*: [Metagenome Sequencing of the Hadza Hunter-Gatherer Gut Microbiota](http://www.ncbi.nlm.nih.gov/pubmed/25981789). Curr. Biol. 2015, 25:1682–1693. 
+
+```{r, message=FALSE}
+library(curatedMetagenomicData)
+eset <- RampelliS_2015.metaphlan_bugs_list.stool()
+library(phyloseq)
+Rampelli = ExpressionSet2phyloseq(eset)
+```
+
+## Quick look: Rampelli Africa dataset
+
+```{r, eval=TRUE}
+Rampelli
+otu_table(Rampelli)[1:5, 1:4]
+summary(otu_table(Rampelli)[, 1:4])
+summary(sample_data(Rampelli))
+```
+
+## Heatmap
+
+```{r Rampelliheatmap, warning=FALSE}
+plot_heatmap(Rampelli, method="PCoA", distance="bray")
+```
+
+## Barplot
+
+```{r Rampellibarplot}
+par(mar = c(18, 4, 0, 0) + 0.1) # make more room on bottom margin
+barplot(sort(taxa_sums(Rampelli), TRUE)[1:30]/nsamples(Rampelli), las=2)
+```
+
+## Subsetting and pruning
+
+```{r}
+head(tax_table(Rampelli))
+```
+
+Species plus strain-level taxonomy:
+```{r}
+(Rampelli.sp_strain = subset_taxa(Rampelli, !is.na(Species)))
+```
+
+Keep phylum-level taxonomy only:
+```{r}
+taxonomy.level = apply(tax_table(Rampelli), 1, function(x) sum(!is.na(x)))
+Rampelli.phy = prune_taxa(taxonomy.level==2, Rampelli)
+taxa_names(Rampelli.phy)
+```
+
+## Advanced subsetting
+
+Keep taxa only if they are in the most abundant 10% of taxa in at least 10 samples:
+```{r, warning=FALSE}
+f1<- filterfun_sample(topp(0.1))
+subs <- genefilter_sample(Rampelli.sp_strain, f1, A=10)
+Rampelli2 <- subset_taxa(Rampelli.sp_strain, subs)
+plot_heatmap(Rampelli2, method="PCoA", distance="bray")
+```
+
+
+More help [here](https://bioconductor.org/packages/release/bioc/vignettes/phyloseq/inst/doc/phyloseq-basics.html#trimming-subsetting-filtering-phyloseq-data).
+
+
+## Distances in high dimensions
+
+- High-dimensional data are complex and impossible to visualize in raw form
+    - Thousands of dimensions, we can only visualize 2-3
+- Distances can simplify thousands of dimensions
+- Any clustering or classification of samples and/or features involves
+combining or identifying objects that are close or similar.
+- Distances or similarities are mathematical representations of what
+we mean by close or similar.
+- The choice of distance is a subject matter-specific, qualitative decision
+
+## Alpha / Beta diversity measures
+
+From Morgan and Huttenhower [Human Microbiome Analysis](http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1002808)
+
+<img src="journal.pcbi.1002808.g002.png" alt="SVD" align="middle" style="width: 1000px;">
+
+These examples describe the A) sequence counts and B) relative abundances of six taxa detected in three samples. C) A collector's curve using a richness estimator approximates the relationship between the number of sequences drawn from each sample and the number of taxa expected to be present based on detected abundances. D) Alpha diversity captures both the organismal richness of a sample and the evenness of the organisms' abundance distribution. E) Beta diversity represents the similarity (or difference) in organismal composition between samples. 
+
+* Shannon Index alpha diversity: $H' = -\sum_{i=1}^{S} \left( p_i ln(p_i) \right )$
+* Beta diversity: $\beta = (n_1 - c) + (n_2 - c)$
+
+## Alpha diversity estimates
+
+* Look at `?phyloseq::estimate_richness`
+* Supported measures of alpha diversity are:
+    - "Observed", "Chao1", "ACE", "Shannon", "Simpson", "InvSimpson", "Fisher"
+    - more information from `vegan` package
+
+Note, you can ignore warning about singletons:
+```{r, warning=FALSE}
+Rampelli.counts <- ExpressionSet2phyloseq(eset, relab=FALSE)
+alpha_meas = c("Shannon", "Simpson", "InvSimpson")
+(p <- plot_richness(Rampelli.counts, "gender", "camp", measures=alpha_meas))
+```
+
+## Comparison of alpha diversity estimates
+
+```{r}
+alphas = estimate_richness(Rampelli.counts, measures=alpha_meas)
+pairs(alphas)
+```
+
+## Beta diversity / dissimilarity 
+
+E.g. Bray-Curtis dissimilarity between all pairs of samples:
+
+```{r}
+plot(hclust(phyloseq::distance(Rampelli, method="bray")), 
+     main="Bray-Curtis Dissimilarity", xlab="", sub = "")
+```
+
+* Dozens of distance measures are available
+    - see `?phyloseq::distance` and `?phyloseq::distanceMethodList`
+
+## Ordination
+
+* Because Euclidian distance isn't preferred, usually don't use PCA
+* Most commonly use Principal Coordinates Analysis
+    + preserves distances in a low-dimensional projection
+
+```{r}
+ord = ordinate(Rampelli, method="PCoA", distance="bray")
+plot_ordination(Rampelli, ord, color="camp", shape="camp") + 
+  ggplot2::ggtitle("Bray-Curtis Principal Coordinates Analysis")
+```
+
+* Available methods are "DCA", "CCA", "RDA", "CAP", "DPCoA", "NMDS", "MDS", "PCoA"
+
+Not much "horseshoe" effect here.
+
+## Linear modeling for metagenomic data: Two main approaches (1)
+
+1. normalizing transformation, orinary linear modeling
+     - calculate relative abundance, dividing by the total number of counts for each sample (account for different sequencing depths)
+     - variance-stabilizing transformation of features, `arcsin(sqrt(x))`
+
+* *Advantages*
+    - simplicity: can directly use PCA, linear models, non-parametric tests
+
+* *Disadvantages*
+    - data may still not be very normally distributed
+    - regression coefficients for arcsin-sqrt transformed data not easily interpretable
+
+## Two main approaches (2)
+
+2. treat as count data, log-linear generalized linear model (GLM)
+     - log-linear systematic component
+     - typically negative binomially-distributed random component
+     - model can include an "offset" term to account for different sequencing depths
+
+* *Advantages*
+    - GLM framework provides great flexibility to deal with sequencing depth, over-dispersion
+    - coefficients are readily interpretable in "multiplicative" models
+    - `phyloseq` and `DESeq2` packages simplify the process
+
+* *Disadvantages*
+    - models are more complicated to understand
+
+## Multiple Linear Regression Model (approach 1)
+
+Systematic part of model:
+
+$$
+E[y|x] = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + ... + \beta_p x_p
+$$
+
+- $E[y|x]$ is the expected value of $y$ given $x$
+- $y$ is the outcome, response, or dependent variable
+- $x$ is the vector of predictors / independent variables 
+- $x_p$ are the individual predictors or independent variables
+- $\beta_p$ are the regression coefficients
+
+## Multiple Linear Regression Model (cont'd)
+
+Random part of model:
+
+$y_i = E[y_i|x_i] + \epsilon_i$
+
+$y_i = \beta_0 + \beta_1 x_{1i} + \beta_2 x_{2i} + ... + \beta_p x_{pi} + \epsilon_i$
+
+- $x_{pi}$ is the value of predictor $x_j$ for observation $i$
+
+Assumption: $\epsilon_i \stackrel{iid}{\sim} N(0, \sigma_\epsilon^2)$
+
+* Normal distribution of $\epsilon_i$
+* Mean zero at every value of predictors
+* Constant variance at every value of predictors
+* Observations are independent
+
+
+## Log-linear models
+
+Systematic component is:
+
+$$
+log(E[y|x_i]) = \beta_0 + \beta_1 x_{1i} + \beta_2 x_{2i} + ... + \beta_p x_{pi}
+$$
+
+Or equivalently:
+$$
+E[y|x_i] = exp \left( \beta_0 + \beta_1 x_{1i} + \beta_2 x_{2i} + ... + \beta_p x_{pi} \right)
+$$
+
+where $E[y|x_i]$ is the expected number of counts for a microbe in subject _i_
+
+* Random component:
+
+$y_i$ is typically assumed to be Poisson or Negative Binomal distributed.
+
+
+* Note: Modeling $log(E[y|x_i])$ is _not_ equivalent to modeling $E(log(y|x_i))$
+
+
+## Compare Poisson vs. Negative Binomial
+
+Negative Binomial Distribution has two parameters: # of trials n, and probability of success p
+
+```{r, echo=FALSE}
+plot(x=0:40, y=dnbinom(0:40, size=10, prob=0.5), 
+     type="b", lwd=2, ylim=c(0, 0.15),
+     xlab="Counts (k)", ylab="Probability density")
+lines(x=0:40, y=dnbinom(0:40, size=20, prob=0.5), 
+      type="b", lwd=2, lty=2, pch=2)
+lines(x=0:40, y=dnbinom(0:40, size=10, prob=0.3),
+      type="b", lwd=2, lty=3, pch=3)
+lines(x=0:40, y=dpois(0:40, lambda=9), col="red")
+lines(x=0:40, y=dpois(0:40, lambda=20), col="red")
+legend("topright", lwd=c(2,2,2,1), lty=c(1:3,1), pch=c(1:3,-1), col=c(rep("black", 3), "red"),
+       legend=c("n=10, p=0.5", "n=20, p=0.5", "n=10, p=0.3", "Poisson"))
+```
+
+
+## Additive vs. Multiplicative models
+
+* Linear regression is an _additive_ model
+    + _e.g._ for two binary variables $\beta_1 = 1.5$, $\beta_2 = 1.5$.
+    + If $x_1=1$ and $x_2=1$, this adds 3.0 to $E(y|x)$
+
+* Log-linear models are _multiplicative_:
+    + If $x_1=1$ and $x_2=1$, this adds 3.0 to $log(E[y_i])$
+    + Expected count increases 20-fold: $exp(1.5+1.5)$ or $exp(1.5) * exp(1.5)$
+    + Coefficients are invariant to multiplicative scaling of the data
+
+This is a very important distinction!
+
+## Feature and sample QC
+
+In this example, unecessary to remove low-read samples or taxa:
+```{r}
+Rampelli.counts
+prune_samples(sample_sums(Rampelli.counts) > 5e7, Rampelli.counts)
+prune_taxa(taxa_sums(Rampelli.counts) > 1e3, Rampelli.counts)
+```
+
+## Conversion to DESeq2
+
+More help on converting to DESeq2 from various formats [here](https://bioconductor.org/packages/release/bioc/vignettes/phyloseq/inst/doc/phyloseq-mixture-models.html).
+
+```{r, echo=FALSE}
+suppressPackageStartupMessages(library("DESeq2"))
+```
+
+```{r, warning=FALSE}
+dds.data = phyloseq_to_deseq2(Rampelli.counts, ~country)
+```
+
+**Note**: better to use normalized count data than relative abundance
+
+## Negative Binomial log-linear model with DESeq2
+
+Excellent DESeq2 manual [here](https://bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.pdf) or `vignettes(package="DESeq2")`
+
+```{r, results="hide", message=FALSE}
+dds = DESeq(dds.data)
+res = results(dds)
+res = res[order(res$padj, na.last=NA), ]
+alpha = 0.01
+sigtab = res[(res$padj < alpha), ]
+sigtab = cbind(as(sigtab, "data.frame"), 
+               as(tax_table(Rampelli)[rownames(sigtab), ], "matrix"))
+```
+
+```{r}
+head(sigtab)
+```
+
+## Plot results
+
+```{r}
+library("ggplot2")
+theme_set(theme_bw())
+sigtabgen = subset(sigtab, !is.na(Family))
+# Phylum order
+x = tapply(sigtabgen$log2FoldChange, sigtabgen$Phylum, function(x) max(x))
+x = sort(x, TRUE)
+sigtabgen$Phylum = factor(as.character(sigtabgen$Phylum), levels=names(x))
+# Family order
+x = tapply(sigtabgen$log2FoldChange, sigtabgen$Family, function(x) max(x))
+x = sort(x, TRUE)
+sigtabgen$Family = factor(as.character(sigtabgen$Family), levels=names(x))
+ggplot(sigtabgen, aes(y=Family, x=log2FoldChange, color=Phylum)) + 
+  geom_vline(xintercept = 0.0, color = "gray", size = 0.5) +
+  geom_point(size=6) + 
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5))
+```
+
+## Heatmap of differentially abundant taxa
+
+```{r}
+select <- rownames(sigtab)
+nt <- normTransform(dds) # defaults to log2(x+1)
+log2.norm.counts <- assay(nt)[select, ]
+df <- as.data.frame(colData(dds)[,c("country", "gender")])
+```
+
+```{r}
+pheatmap::pheatmap(log2.norm.counts, annotation_col=df, main="log2(counts + 1)")
+```
+
+## MA plots
+
+Fold-change vs. mean:
+```{r}
+plotMA(res, main="Difference vs. Average")
+legend("bottomright", legend="differentially abundant", lty=-1, pch=1, col="red", bty='n')
+```
+
+## A note about Multiple Hypothesis Testing
+
+* `DESeq2` uses "Independent Hypothesis Weighting" (see `IHW` package)
+    + like False Discovery Rate, but automatically down-weights hypotheses from low-abundance features
+    + *may* make "non-specific" filtering / pruning of low-abundance features
+    + in my experience, there aren't enough features in microbiome data for it to work
+
+## Regression on ordination vectors and alpha diversity
+
+Prepare a `data.frame`:
+```{r}
+df = data.frame(country=sample_data(Rampelli)$country,
+                Shannon=alphas$Shannon)
+df = cbind(df, ord$vectors[, 1:5])
+head(df)
+```
+
+```{r}
+par(mfrow=c(3,2))
+for (i in 2:7){
+  boxplot(df[, i] ~ df$country, main=colnames(df)[i])
+}
+```
+
+## curatedMetagenomicData pipeline
+
+<img src="cMDpipeline.jpg" alt="cMD" align="middle" style="width: 1000px;">
+
+## curatedMetagenomicData usage
+
+One dataset from R:
+```{r, eval=FALSE}
+curatedMetagenomicData("HMP_2012.metaphlan_bugs_list.stool")
+```
+
+Many datasets from R:
+```{r, eval=FALSE}
+curatedMetagenomicData("HMP_2012.metaphlan_bugs_list.*")
+```
+
+Command-line:
+```$ curatedMetagenomicData -p "HMP_2012.metaphlan_bugs_list.*"```
+
+Pasolli, Schiffer *et al.*, bioRxiv 103085
+
+## Links
+
+- A built [html][] version of this lecture is available.
+- The [source][] R Markdown is also available from Github.
+
+[html]: http://rpubs.com/lwaldron/Iowa2017microbiome
+[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2017-05-21_Iowa
