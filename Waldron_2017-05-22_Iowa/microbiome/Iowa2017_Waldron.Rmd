@@ -466,4 +466,4 @@ Pasolli, Schiffer *et al.*, bioRxiv 103085
 - The [source][] R Markdown is available from Github.
 
 [html]: http://rpubs.com/lwaldron/Iowa2017microbiome
-[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2017-05-22_Iowa
+[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2017-05-22_Iowa/microbiome
