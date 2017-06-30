@@ -1,0 +1,258 @@
+---
+title: "Lab: linear modeling for microbiome data in R/Bioconductor"
+author: "Levi Waldron"
+date: "June 30, 2017"
+output: html_document
+---
+
+```{r setup, cache=FALSE, echo=FALSE}
+library(knitr)
+# global chunk options
+opts_chunk$set(cache=TRUE, autodep=TRUE)
+```
+
+This lab performs differential abundance analysis in the Rampelli Italy/Tanzania dataset, optionally correcting for gender as a potential confounding factor. 
+
+## Load data
+
+Create a phyloseq object from the Rampelli Italy/Tanzania dataset, converting relative abundance to approximate counts:
+
+```{r, message=FALSE}
+suppressPackageStartupMessages(library(curatedMetagenomicData))
+Rampelli = curatedMetagenomicData("RampelliS_2015.metaphlan_bugs_list.stool", 
+                       dryrun = FALSE, counts = TRUE,
+                       bugs.as.phyloseq = TRUE)[[1]]
+```
+
+Question: Look at the sample data by doing `View(sample_data(Rampelli))`
+
+## Sample selection and taxa pruning
+
+Keep only taxa with at least 10 total counts across all samples. This is a good way to improve your power to detect differentially abundant taxa because these low-abundance taxa are less likely to be differentially abundant and increase multiple testing.
+
+```{r}
+suppressPackageStartupMessages(library(phyloseq))
+Rampelli = prune_taxa(taxa_sums(Rampelli) > 10, Rampelli)
+Rampelli
+```
+
+How many taxa were present before and after pruning?
+
+## Conversion to DESeq2 object
+
+Prepare a DESeq2 object for a linear model with country as the predictor. More help on converting to DESeq2 from various formats [here](https://bioconductor.org/packages/release/bioc/vignettes/phyloseq/inst/doc/phyloseq-mixture-models.html).
+
+```{r, echo=FALSE}
+suppressPackageStartupMessages(library("DESeq2"))
+```
+
+```{r}
+dds.data = phyloseq_to_deseq2(Rampelli, ~country)
+```
+
+## Negative Binomial log-linear model with DESeq2
+
+Excellent DESeq2 manual [here](https://bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.pdf) or `vignettes(package="DESeq2")`
+
+```{r, results="hide", message=FALSE}
+dds = DESeq(dds.data)
+res = results(dds)
+res = res[order(res$padj, na.last=NA), ]
+alpha = 0.01
+sigtab = res[(res$padj < alpha), ]
+sigtab = cbind(as(sigtab, "data.frame"), 
+               as(tax_table(Rampelli)[rownames(sigtab), ], "matrix"))
+```
+
+```{r}
+head(sigtab)
+```
+
+
+## Bayesian estimation of dispersion
+
+```{r, message=FALSE}
+dds <- estimateSizeFactors(dds)
+dds <- estimateDispersions(dds)
+plotDispEsts(dds)
+```
+
+## Plot results
+
+```{r}
+library("ggplot2")
+theme_set(theme_bw())
+sigtabgen = subset(sigtab, !is.na(Family))
+# Phylum order
+x = tapply(sigtabgen$log2FoldChange, sigtabgen$Phylum, function(x) max(x))
+x = sort(x, TRUE)
+sigtabgen$Phylum = factor(as.character(sigtabgen$Phylum), levels=names(x))
+# Family order
+x = tapply(sigtabgen$log2FoldChange, sigtabgen$Family, function(x) max(x))
+x = sort(x, TRUE)
+sigtabgen$Family = factor(as.character(sigtabgen$Family), levels=names(x))
+ggplot(sigtabgen, aes(y=Family, x=log2FoldChange, color=Phylum)) + 
+  geom_vline(xintercept = 0.0, color = "gray", size = 0.5) +
+  geom_point(size=6) + 
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5))
+```
+
+## Correcting for gender as a potential confounder
+
+```{r}
+table(sample_data(Rampelli)$country, sample_data(Rampelli)$gender)
+```
+
+```{r, results="hide", message=FALSE}
+dds2 = phyloseq_to_deseq2(Rampelli, ~country + gender)
+dds2 = DESeq(dds2)
+```
+
+```{r}
+resultsNames(dds2)
+```
+
+## Correcting for gender as a potential confounder
+
+The way the contrast is specified here sets ITA (Italy) as the numerator and TZA (Tanzania) as the denominator for fold-change calculations.
+
+```{r}
+res2 = results(dds2, contrast=c("country", "ITA", "TZA"))
+res2 = res2[order(res$padj, na.last=NA), ]
+alpha = 0.01
+sigtab2 = res2[which(res2$padj < alpha), ]
+sigtab2 = cbind(as(sigtab2, "data.frame"), as(tax_table(Rampelli)[rownames(sigtab2), ], "matrix"))
+head(sigtab2)
+```
+
+* *Optional* can add interaction terms between country and gender
+
+## MA plots
+
+Log fold-change vs. mean shows how well the homoskedasticity assumption holds, and identifies unusual OTUs where fold-change is at a limit.
+
+```{r}
+plotMA(res, main="Difference vs. Average")
+legend("bottomright", legend="differentially abundant", lty=-1, pch=1, col="red", bty='n')
+```
+
+## Plot individual counts
+```{r}
+par(mfrow=c(1,2))
+plotCounts(dds2, gene="p__Actinobacteria", intgroup="country")
+plotCounts(dds2, gene="p__Actinobacteria", intgroup="gender")
+```
+
+## Heatmap of differentially abundant taxa
+
+```{r}
+select <- rownames(sigtab2)
+nt <- normTransform(dds2) # defaults to log2(x+1)
+log2.norm.counts <- assay(nt)[select, ]
+df <- as.data.frame(colData(dds2)[,c("country", "gender")])
+```
+
+```{r}
+pheatmap::pheatmap(log2.norm.counts, annotation_col=df, main="log2(counts + 1)")
+```
+
+## Regression on ordination vectors and alpha diversity
+
+Shannon Alpha diversity:
+```{r}
+shannon = estimate_richness(Rampelli, measures="Shannon")
+```
+
+PCoA with Bray-Curtis dissimilarity:
+```{r}
+ord = ordinate(Rampelli, method="PCoA", distance="bray")
+```
+
+Prepare a `data.frame` with country, Shannon alpha diversity, and the first five Bray-Curtis ordination scores:
+```{r}
+df = cbind(sample_data(Rampelli)[, "country", drop=FALSE],
+           shannon,
+           ord$vectors[, 1:3])
+df$country <- factor(df$country)
+```
+
+```{r}
+par(mfrow=c(2,2))
+for (i in seq(2, ncol(df))){
+  boxplot(df[, i] ~ df$country, main=colnames(df)[i])
+}
+```
+
+## Regression on ordination vectors and alpha diversity (cont'd)
+
+Multivariate is problematic because using more than one PCoA score (axis) predicts country perfectly, causing numerical instability that prevents inference on the individual scores. Below limits the predictors to Shannon alpha diversity and only the first PCoA score. You could use all columns in `df` except for country as predictors using the model formula `country ~ .`.
+
+```{r}
+fit = glm(country ~ Shannon + Axis.1, 
+          control=glm.control(maxit=1000),
+          data=df, family=binomial("logit"))
+summary(fit)
+```
+
+Univariate regression:
+```{r}
+unires <- sapply(2:ncol(df), function(i){
+  fit = glm(df$country ~ df[, i], family=binomial("logit"))
+  summary(fit)$coefficients[2, ]
+})
+colnames(unires) = colnames(df)[2:ncol(df)]
+unires
+write.csv(unires, file="univariate_shannonPCoA.csv")
+```
+
+# Fitting a zero-inflated log-normal model with metagenomeSeq
+
+## metagenomeSeq
+
+Preparing the data object:
+
+```{r}
+Rampellieset = curatedMetagenomicData("RampelliS_2015.metaphlan_bugs_list.stool", 
+                       dryrun = FALSE, counts = TRUE,
+                       bugs.as.phyloseq = FALSE)[[1]]
+mseq = ExpressionSet2MRexperiment(Rampellieset)
+```
+
+Normalization as per package vignette (`browseVignettes("metagenomeSeq")`):
+
+```{r}
+library(metagenomeSeq)
+p = cumNormStatFast(mseq)
+mseq = cumNorm(mseq, p = p)
+```
+
+Performing the regression analysis:
+
+```{r, warning=FALSE}
+pd <- pData(mseq)
+mod <- model.matrix(~1 + country, data = pd)
+mseqres = fitFeatureModel(mseq, mod)
+```
+
+```{r, eval=FALSE}
+View(MRcoefs(mseqres))
+View(MRtable(mseqres))
+```
+
+The recurring problem with "perfect" models interfering with convergence is still present.
+
+**NOTE**: It appears that metagenomeSeq uses the same model matrix for both the zero-inflation logistic model, and the log-linear negative binomial model. This is OK for inference on the count model, but *I don't like it* for the sake of interpretability of the coefficients. I believe there is a way to over-ride this default, but I'm not yet sure how. However, it does not seem to have affected the coefficients of the linear model very much:
+
+```{r}
+res.matched <- res[match(rownames(MRcoefs(mseqres)), rownames(res)), ]
+plot(res.matched$log2FoldChange, MRcoefs(mseqres)$logFC)
+```
+
+
+## Links
+
+- A built [html][] version of this lecture is available.
+- The [source][] R Markdown is also available from Github.
+
+[html]: http://rpubs.com/lwaldron/EPIC2017_linearmodelinglab
+[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2017-06-30_EPIC

@@ -88,9 +88,9 @@ Rampelli S *et al.*: [Metagenome Sequencing of the Hadza Hunter-Gatherer Gut Mic
 
 ```{r, message=FALSE}
 library(curatedMetagenomicData)
-eset <- RampelliS_2015.metaphlan_bugs_list.stool()
-library(phyloseq)
-Rampelli = ExpressionSet2phyloseq(eset)
+Rampelli = curatedMetagenomicData("RampelliS_2015.metaphlan_bugs_list.stool", 
+                       dryrun = FALSE, counts = FALSE,
+                       bugs.as.phyloseq = TRUE)[[1]]
 ```
 
 ## Quick look: Rampelli Africa dataset
