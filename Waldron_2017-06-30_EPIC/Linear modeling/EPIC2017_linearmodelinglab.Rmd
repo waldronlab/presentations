@@ -114,7 +114,7 @@ resultsNames(dds2)
 
 ## Correcting for gender as a potential confounder
 
-The way the contrast is specified here sets ITA (Italy) as the numerator and TZA (Tanzania) as the denominator for fold-change calculations.
+The way the contrast is specified here sets TZA (Tanzania) as the numerator and ITA (Italy) as the denominator for fold-change calculations.
 
 ```{r}
 res2 = results(dds2, contrast=c("country", "ITA", "TZA"))
