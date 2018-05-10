@@ -11,24 +11,25 @@
 The goal of this workshop is to introduce Bioconductor packages for finding,
 accessing, and using large-scale public data resources including the 
 Gene Expression Omnibus [GEO](https://www.ncbi.nlm.nih.gov/geo), Sequence
-Read Archive [SRA](https://www.ncbi.nlm.nih.gov/sra), and the Genomic Data
-Commons [GDC](https://portal.gdc.cancer.gov/). 
-
-- TODO: Ben and Levi to add their interests. 
+Read Archive [SRA](https://www.ncbi.nlm.nih.gov/sra), the Genomic Data
+Commons [GDC](https://portal.gdc.cancer.gov/), and Bioconductor-hosted 
+curated data resources for metagenomics, pharmacogenomics, and The Cancer 
+Genome Atlas.
 
 ## Pre-requisites
 
-List any workshop prerequisites, for example:
-
 * Basic knowledge of R syntax
-* Familiarity with the GenomicRanges class
-* Familiarity with xyz vignette (provide link)
+* Familiarity with the ExpressionSet and SummarizedExperiment classes
+* Basic familiarity with 'omics technologies such as microarray and NGS sequencing
 
-List relevant background reading for the workshop, including any
-theoretical background you expect students to have.
+Interested students can prepare by reviewing vignettes of the following packages to gain background on aspects of interest to them:
 
-* List any textbooks, papers, or other reading that students should be
-  familiar with. Include direct links where possible.
+* [GEOquery](http://bioconductor.org/packages/GEOquery/): Access to the NCBI Gene Expression Omnibus (GEO), a public repository of gene expression (primarily microarray) data.
+* [GenomicDataCommons](http://bioconductor.org/packages/GenomicDataCommons/): Access to the NIH / NCI Genomic Data Commons RESTful service.
+* [SRAdb](http://bioconductor.org/packages/SRAdb/): A compilation of metadata from the NCBI Sequence Read Archive, the largest public repository of sequencing data from the next generation of sequencing platforms, and tools
+* [curatedTCGAData](http://bioconductor.org/packages/curatedTCGAData/): Curated data from The Cancer Genome Atlas (TCGA) as MultiAssayExperiment Objects
+* [curatedMetagenomicData](http://bioconductor.org/packages/curatedMetagenomicData/): Curated metagenomic data of the human microbiome
+* [PharmacoGx](https://bioconductor.org/packages/PharmacoGx/): Analysis of large-scale pharmacogenomic data
 
 ## workshop Participation 
 
