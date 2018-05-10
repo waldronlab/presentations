@@ -1,17 +1,20 @@
-# Insert Workshop Title
+# Public Data Resources and Bioconductor
 
-# Instructor(s) name(s) and contact information
+# Instructors
 
-Provide names and contact information for all instructors.
+- Levi Waldron, City University of New York, New York, NY, USA
+- Benjamin Haibe-Kain, Princess Margaret Cancer Center, Toronto, Canada
+- Sean Davis, Center for Cancer Research, National Cancer Institute, National Institutes of Health, Bethesda, MD, USA
 
 # Workshop Description 
 
-Along with the topic of your workshop, include how students can expect
-to spend their time. For the description may also include information
-about what type of workshop it is (e.g. instructor-led live demo, lab,
-lecture + lab, etc.). Instructors are strongly recommended to provide
-completely worked examples for lab sessions, and a set of stand-alone
-notes that can be read and understood outside of the workshop.
+The goal of this workshop is to introduce Bioconductor packages for finding,
+accessing, and using large-scale public data resources including the 
+Gene Expression Omnibus [GEO](https://www.ncbi.nlm.nih.gov/geo), Sequence
+Read Archive [SRA](https://www.ncbi.nlm.nih.gov/sra), and the Genomic Data
+Commons [GDC](https://portal.gdc.cancer.gov/). 
+
+- TODO: Ben and Levi to add their interests. 
 
 ## Pre-requisites
 
