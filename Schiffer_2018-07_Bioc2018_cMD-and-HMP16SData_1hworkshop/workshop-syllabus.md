@@ -1,10 +1,10 @@
-# Insert Workshop Title
+# Microbiome Something...
 
 # Instructor(s) name(s) and contact information
 
-Provide names and contact information for all instructors.
+Lucas Schiffer (schifferl.io),
 
-# Workshop Description 
+# Workshop Description
 
 Along with the topic of your workshop, include how students can expect
 to spend their time. For the description may also include information
@@ -27,13 +27,13 @@ theoretical background you expect students to have.
 * List any textbooks, papers, or other reading that students should be
   familiar with. Include direct links where possible.
 
-## workshop Participation 
+## workshop Participation
 
 Describe how students will be expected to participate in the workshop.
 
 ## R/Bioconductor packages used
 
-List any R/Bioconductor packages that will be explicitly covered.
+`curatedMetagenomicData`, `HMP16SData`, `phyloseq`, `ggplot2`
 
 ## Time outline
 
@@ -50,15 +50,15 @@ An example for a 45m workshop:
 
 List "big picture" student-centered workshop goals and learning
 objectives. Learning goals and objectives are related, but not the
-same thing. These goals and objectives will help some people to decide 
-whether to attend the conference for training purposes, so please make 
+same thing. These goals and objectives will help some people to decide
+whether to attend the conference for training purposes, so please make
 these as precise and accurate as possible.
 
 *Learning goals* are high-level descriptions of what
 participants will learn and be able to do after the workshop is
 over. *Learning objectives*, on the other hand, describe in very
 specific and measurable terms specific skills or knowledge
-attained. The [Bloom's Taxonomy](#bloom) may be a useful framework 
+attained. The [Bloom's Taxonomy](#bloom) may be a useful framework
 for defining and describing your goals and objectives, although there
 are others.
 
@@ -93,11 +93,11 @@ cognitive requirements:
 4. Analysis: Learners must be able to analyze the information, by
    identifying its different components.
 5. Synthesis: Learners must be able to create something new using
-   different chunks of the information they have already mastered. 
+   different chunks of the information they have already mastered.
 6. Evaluation: Learners must be able to present opinions, justify
    decisions, and make judgments about the information presented,
    based on previously acquired knowledge.
-   
+
 To use Bloom's taxonomy, consider the following sets of verbs and
 descriptions for learning objectives:
 
