@@ -62,8 +62,8 @@ This is a 1h45m workshop.
 
 Bioconductor provides access to significant amounts of publicly available 
 experimental  data. This workshop introduces students to Bioconductor
-interfaces to the NCBI's Gene Expression Omnibus, Genomic Data Commons, 
-and Sequence Read Archive. It additionally introduces curated resources 
+interfaces to the NCBI's Gene Expression Omnibus, Genomic Data Commons,
+Sequence Read Archive and PharmacoDB. It additionally introduces curated resources 
 providing The Cancer Genome Atlas, the Human Microbiome Project and other 
 microbiome studies, and major pharmacogenomic studies, as native Bioconductor
 objects ready for analysis and comparison to in-house datasets.
