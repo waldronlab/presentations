@@ -1,5 +1,5 @@
 ---
-title: "Bioc2017 MultiAssayExperiment Lab"
+title: "MultiAssayExperiment Lab"
 vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteIndexEntry{Coordinating Analysis of Multi-Assay Experiments}
