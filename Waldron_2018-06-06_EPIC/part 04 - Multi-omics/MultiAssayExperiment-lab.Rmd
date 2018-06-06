@@ -473,90 +473,18 @@ The highest correlation present is between PC2 of the RNA-seq assay, and PC1 of 
 
 <p style="text-align: right;"> <a href="#header">back to top</a> </p>
 
-## Annotating with ranges
+# MetaPhlAn2 and HUMAnN2 results as MultiAssayExperiment
 
-Convert all the `ExperimentList` elements in `miniACC`  to `RangedSummarizedExperiment` objects.  Then use `rowRanges` to annotate these objects with genomic ranges. For the microRNA assay, annotate instead with the genomic coordinates of predicted targets.
+Exercise: Create a MultiAssayExperiment with MetaPhlAn bugs and HUMAnN2 pathway abundance in the LomanNJ_2013 dataset.
 
-**Solution**
-
-
-The following shortcut function takes a list of human gene symbols and uses `AnnotationFilter` and `EnsDb.Hsapiens.v86` to look up the ranges, and return these as a GRangesList which can be used to replace the rowRanges of the SummarizedExperiment objects:
+**solution**
 
 ```{r}
-getrr <- function(identifiers, EnsDbFilterFunc="SymbolFilter"){
-  suppressPackageStartupMessages({
-    library(AnnotationFilter)
-    library(EnsDb.Hsapiens.v86)
-  })
-    FUN <- get(EnsDbFilterFunc)
-    edb <- EnsDb.Hsapiens.v86
-    afl <- AnnotationFilterList(FUN(identifiers),
-                                SeqNameFilter(c(1:21, "X", "Y")),
-                                TxBiotypeFilter("protein_coding"))
-    gr <- genes(edb, filter=afl)
-    grl <- split(gr, factor(identifiers))
-    grl <- grl[match(identifiers, names(grl))]
-    stopifnot(identical(names(grl), identifiers))
-    return(grl)
-}
+esl <- curatedMetagenomicData(c("LomanNJ_2013.metaphlan_bugs_list.stool",
+                         "LomanNJ_2013.pathabundance_relab.stool"), dryrun = FALSE)
+library(MultiAssayExperiment)
+mae <- MultiAssayExperiment(esl, colData = pData(esl[[1]]))
 ```
-
-For example:
-```{r}
-getrr(rownames(miniACC)[[1]])
-```
-
-Use this to set the rowRanges of experiments 1-4 with these GRangesList objects
-```{r}
-rseACC <- miniACC
-for (i in 1:4){
-  rowRanges(rseACC[[i]]) <- getrr(rownames(rseACC[[i]]))
-}
-```
-
-Note that the class of experiments 1-4 is now `RangedSummarizedExperiment`:
-```{r}
-experiments(rseACC)
-```
-
-With ranged objects in the MultiAssayExperiment, you can then do subsetting by ranges. For example, select all genes on chromosome 1 for the four 
-*rangedSummarizedExperiment* objects:
-```{r}
-rseACC[GRanges(seqnames="1:1-1e9"), , 1:4]
-```
-
-*Note about microRNA*: You can set ranges for the microRNA assay according to the genomic location of those microRNA, or the locations of their predicted targets, but we don't do it here. Assigning genomic ranges of microRNA targets would be an easy way to subset them according to their targets.
-
-<p style="text-align: right;"> <a href="#header">back to top</a> </p>
-
-## Shiny app
-
-The *maeView.R* function defined in this workshop opens a Shiny app for similar TCGA objects, to identify and visualize relationships between RNA-seq expression, GISTIC copy number peaks, and microRNA expression.  For a specified gene, you can view a boxplot of expression vs. copy number, and use *limma* to identify microRNA correlated to expression of that gene.
-
-```{r, eval=FALSE}
-MultiAssayExperimentWorkshop::maeView(miniACC)
-```
-
-<p style="text-align: right;"> <a href="#header">back to top</a> </p>
-
-# The Cancer Genome Atlas (TCGA) as MultiAssayExperiments
-
-Most unrestricted TCGA data are available as MultiAssayExperiment objects from the curatedTCGAData package. This represents a lot of harmonization!
-
-```{r}
-library(curatedTCGAData)
-curatedTCGAData("ACC")
-acc <- curatedTCGAData("ACC", 
-                assays=c("miRNASeqGene", "RPPAArray", "Mutation", "RNASeq2GeneNorm"), dry.run=FALSE)
-acc
-```
-
-These objects contain most unrestricted TCGA assay and clinical / pathological data, as well as material curated from the supplements of published TCGA primary papers at the end of the colData columns:
-
-```{r}
-tail(colnames(colData(acc)), 10)
-```
-
 
 # Session info
 

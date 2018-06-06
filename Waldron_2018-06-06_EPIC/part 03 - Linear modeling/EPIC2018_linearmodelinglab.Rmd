@@ -11,7 +11,15 @@ library(knitr)
 opts_chunk$set(cache=TRUE, autodep=TRUE)
 ```
 
+## Overview / Links
+
 This lab performs differential abundance analysis in the Rampelli Italy/Tanzania dataset, optionally correcting for gender as a potential confounding factor. 
+
+- A built [html][] version of this lecture is available.
+- The [source][] R Markdown is also available from Github.
+
+[html]: http://rpubs.com/lwaldron/EPIC2018_lmlab
+[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2018-06-06_EPIC
 
 ## Load data
 
@@ -247,12 +255,3 @@ The recurring problem with "perfect" models interfering with convergence is stil
 res.matched <- res[match(rownames(MRcoefs(mseqres)), rownames(res)), ]
 plot(res.matched$log2FoldChange, MRcoefs(mseqres)$logFC)
 ```
-
-
-## Links
-
-- A built [html][] version of this lecture is available.
-- The [source][] R Markdown is also available from Github.
-
-[html]: http://rpubs.com/lwaldron/EPIC2017_linearmodelinglab
-[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2017-06-30_EPIC

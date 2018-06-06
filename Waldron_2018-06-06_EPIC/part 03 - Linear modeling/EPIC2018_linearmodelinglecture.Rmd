@@ -24,6 +24,13 @@ opts_chunk$set(cache=TRUE, autodep=TRUE)
     + Poisson, Negative Binomial error distributions
     + Zero inflation
 
+## Links
+
+- A built [html][] version of this lecture is available.
+- The [source][] R Markdown is also available from Github.
+
+[html]: http://rpubs.com/lwaldron/EPIC2018_linearmodelingecture
+[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2018-06-06_EPIC
 
 ## Linear modeling for metagenomic data: Two main approaches (1)
 
@@ -585,10 +592,3 @@ legend("topright", lwd=2, lty=1:3, pch=1:3,
     + a log-linear model and a logistic model
     + keep the latter intercept-only unless you have good reason to do otherwise
     
-## Links
-
-- A built [html][] version of this lecture is available.
-- The [source][] R Markdown is also available from Github.
-
-[html]: http://rpubs.com/lwaldron/EPIC2017_linearmodelingecture
-[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2017-06-30_EPIC

@@ -13,12 +13,21 @@ library(knitr)
 opts_chunk$set(cache=TRUE, autodep=TRUE)
 ```
 
+
 ## Outline
 
 - Statistical properties of metagenomic data
 - Distances for high dimensional data
 - Principal Components and Principal Coordinates Analysis
 - Alpha diversity
+
+## Links
+
+- A built [html][] version of this lecture is available.
+- The [source][] R Markdown is also available from Github.
+
+[html]: http://rpubs.com/lwaldron/EPIC2018_introlecture
+[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2018-06-06_EPIC
 
 ## Properties of processed microbiome data
 
@@ -417,10 +426,3 @@ alphas = estimate_richness(Rampelli.counts, measures=alpha_meas)
 pairs(alphas)
 ```
 
-## Links
-
-- A built [html][] version of this lecture is available.
-- The [source][] R Markdown is also available from Github.
-
-[html]: http://rpubs.com/lwaldron/EPIC2017_introlecture
-[source]: https://github.com/waldronlab/presentations/tree/master/Waldron_2017-06-30_EPIC
