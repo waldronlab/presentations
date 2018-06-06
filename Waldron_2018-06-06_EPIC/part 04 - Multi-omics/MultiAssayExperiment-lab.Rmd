@@ -31,6 +31,7 @@ Get started by trying out `MultiAssayExperiment` using a subset of the TCGA adre
 
 ```{r}
 suppressPackageStartupMessages({
+    library(curatedMetagenomicData)
     library(MultiAssayExperiment)
     library(S4Vectors)
 })
