@@ -17,3 +17,6 @@ vignettes/*.pdf
 
 # OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
 .httr-oauth
+Waldron_2017-06-30_EPIC/Intro/EPIC2017_introlab_cache/html
+Waldron_2017-06-30_EPIC/Intro/EPIC2017_introlab_cache/slidy
+Waldron_2017-06-30_EPIC/Intro/EPIC2017_introlecture_cache/slidy

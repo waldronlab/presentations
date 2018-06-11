@@ -27,7 +27,8 @@ Create a phyloseq object from the Rampelli Italy/Tanzania dataset, converting re
 
 ```{r, message=FALSE}
 suppressPackageStartupMessages(library(curatedMetagenomicData))
-Rampelli = curatedMetagenomicData("RampelliS_2015.metaphlan_bugs_list.stool", 
+suppressPackageStartupMessages(library(phyloseq))
+Rampelli.orig = curatedMetagenomicData("RampelliS_2015.metaphlan_bugs_list.stool", 
                        dryrun = FALSE, counts = TRUE,
                        bugs.as.phyloseq = TRUE)[[1]]
 ```
@@ -40,7 +41,8 @@ Keep only taxa with at least 10 total counts across all samples. This is a good 
 
 ```{r}
 suppressPackageStartupMessages(library(phyloseq))
-Rampelli = prune_taxa(taxa_sums(Rampelli) > 10, Rampelli)
+Rampelli = prune_taxa(taxa_sums(Rampelli.orig) > 1e5, Rampelli.orig)
+Rampelli.orig
 Rampelli
 ```
 
@@ -64,10 +66,8 @@ Excellent DESeq2 manual [here](https://bioconductor.org/packages/release/bioc/vi
 
 ```{r, results="hide", message=FALSE}
 dds = DESeq(dds.data)
-res = results(dds)
-res = res[order(res$padj, na.last=NA), ]
-alpha = 0.01
-sigtab = res[(res$padj < alpha), ]
+sigtab = results(dds, alpha=0.01)
+sigtab = sigtab[order(sigtab$padj, na.last=NA), ]
 sigtab = cbind(as(sigtab, "data.frame"), 
                as(tax_table(Rampelli)[rownames(sigtab), ], "matrix"))
 ```
@@ -147,8 +147,8 @@ legend("bottomright", legend="differentially abundant", lty=-1, pch=1, col="red"
 ## Plot individual counts
 ```{r}
 par(mfrow=c(1,2))
-plotCounts(dds2, gene="p__Actinobacteria", intgroup="country")
-plotCounts(dds2, gene="p__Actinobacteria", intgroup="gender")
+plotCounts(dds2, gene="p__Spirochaetes", intgroup="country")
+plotCounts(dds2, gene="p__Spirochaetes", intgroup="gender")
 ```
 
 ## Heatmap of differentially abundant taxa
@@ -168,17 +168,17 @@ pheatmap::pheatmap(log2.norm.counts, annotation_col=df, main="log2(counts + 1)")
 
 Shannon Alpha diversity:
 ```{r}
-shannon = estimate_richness(Rampelli, measures="Shannon")
+shannon = estimate_richness(Rampelli.orig, measures="Observed")
 ```
 
 PCoA with Bray-Curtis dissimilarity:
 ```{r}
-ord = ordinate(Rampelli, method="PCoA", distance="bray")
+ord = ordinate(Rampelli.orig, method="PCoA", distance="bray")
 ```
 
-Prepare a `data.frame` with country, Shannon alpha diversity, and the first five Bray-Curtis ordination scores:
+Prepare a `data.frame` with country, Shannon alpha diversity, and the first three Bray-Curtis ordination scores:
 ```{r}
-df = cbind(sample_data(Rampelli)[, "country", drop=FALSE],
+df = cbind(sample_data(Rampelli.orig)[, "country", drop=FALSE],
            shannon,
            ord$vectors[, 1:3])
 df$country <- factor(df$country)
@@ -196,7 +196,7 @@ for (i in seq(2, ncol(df))){
 Multivariate is problematic because using more than one PCoA score (axis) predicts country perfectly, causing numerical instability that prevents inference on the individual scores. Below limits the predictors to Shannon alpha diversity and only the first PCoA score. You could use all columns in `df` except for country as predictors using the model formula `country ~ .`.
 
 ```{r}
-fit = glm(country ~ Shannon + Axis.1, 
+fit = glm(country ~ Observed + Axis.1, 
           control=glm.control(maxit=1000),
           data=df, family=binomial("logit"))
 summary(fit)
